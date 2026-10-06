@@ -1,0 +1,79 @@
+/* Design tokens — The Smart GetFit Nutrition (ported from the "Modernist" design system, dark theme). */
+
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 400 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+  src: url("../assets/fonts/archivo-roman.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Archivo";
+  font-style: italic;
+  font-weight: 400 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+  src: url("../assets/fonts/archivo-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Caveat";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../assets/fonts/caveat-700.woff2") format("woff2");
+}
+
+:root {
+  color-scheme: dark;
+
+  /* Colour — the design ships dark-only */
+  --color-text: #f3f2f2;
+  --color-bg: #121111;          /* page ground, image wells */
+  --color-surface: #000;        /* cards, header, panels */
+  --color-rule: #3d3a3a;        /* the 2px grid lines */
+  --color-inverse: #0b0b0b;     /* footer, caption chips */
+
+  --color-accent: #ec3013;      /* brand red */
+  --color-accent-100: #2a1210;
+  --color-accent-500: #ff563c;
+  --color-accent-600: #dd2b0f;  /* hover */
+  --color-accent-press: #ae1800;
+  --color-accent-text: #ff9783; /* small red text on dark */
+  --color-on-accent: #121111;   /* button labels on red (4.5:1) */
+
+  --color-neutral-100: #1c1b1b;
+  --color-neutral-200: #262424;
+  --color-neutral-300: #2a2828;
+  --color-neutral-400: #5f5b5b;
+  --color-neutral-500: #77736f;
+  --color-neutral-600: #8f8b8b;
+  --color-neutral-700: #aaa6a6;
+  --color-neutral-900: #2d2b2b;
+
+  --color-footer-text: #e2dfdf;
+  --color-footer-muted: #bab6b6;
+  --color-footer-label: #9b9797;
+  --color-whatsapp: #25d366;
+
+  /* Type */
+  --font: "Archivo", system-ui, sans-serif;
+  --font-script: "Caveat", cursive;
+
+  /* Lines, depth */
+  --rule: 2px solid var(--color-rule);
+  --rule-soft: 2px solid var(--color-neutral-300);
+  --shadow-lg: 0 12px 32px color-mix(in srgb, #2d2b2b 22%, transparent);
+
+  /* Layout */
+  --page-max: 1440px;
+  --gutter: 16px;
+  --masthead-h: 92px;           /* marquee 36 + header 56 (sticky on mobile) */
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --gutter: clamp(32px, 4.45vw, 64px);
+    --masthead-h: 0px;          /* not sticky on desktop */
+  }
+}

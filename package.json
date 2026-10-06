@@ -1,0 +1,13 @@
+{
+  "name": "smart-getfit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Smart GetFit Nutrition — catalogue website for a supplement store in Gulshan-e-Maymar, Karachi.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "preview": "node scripts/preview.js"
+  }
+}

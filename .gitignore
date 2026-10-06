@@ -1,0 +1,10 @@
+node_modules/
+.env
+var/*
+!var/.gitkeep
+uploads/*
+!uploads/.gitkeep
+backups/
+*.log
+.DS_Store
+Thumbs.db
