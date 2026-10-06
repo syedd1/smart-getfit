@@ -1,4 +1,6 @@
 // Public site: rendered pages, static files, uploaded images and the read-only API.
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import express from 'express';
 import { z } from 'zod';
 import { slug } from '../lib/validate.js';
@@ -7,6 +9,9 @@ import { FILE_NAME } from '../services/storage.js';
 import { HttpError } from '../middleware/errors.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { UPLOAD_CSP } from '../middleware/security.js';
+import { createCompressionCache } from '../lib/compress.js';
+
+const TEXT_FILE = /\.(css|js|svg|txt|json|xml)$/;
 
 const sectionParam = z.enum(SECTIONS);
 
@@ -67,12 +72,31 @@ export function createPublicRouter({ config, data, rendered, media, logger }) {
   });
   router.use('/api', api);
 
-  // ── Rendered pages ─────────────────────────────────────────────────────
+  // Files referenced with ?v=<content hash> never change under that URL: cache them for
+  // a year. (Not in development, where files change without a restart.)
+  const cacheControl = (req, file) => {
+    if (config.isProduction && req.query.v) return 'public, max-age=31536000, immutable';
+    return /\.(css|js)$/.test(file) ? 'no-cache' : 'public, max-age=604800';
+  };
+
+  // ── Rendered pages, sitemap.xml, robots.txt ────────────────────────────
+  const pageCache = createCompressionCache();
+  let generation = rendered.generation;
   router.use((req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
-    if (rendered.pages.has(req.path)) {
-      res.set('Cache-Control', 'no-cache').type('html').send(rendered.pages.get(req.path));
-      return undefined;
+    if (rendered.generation !== generation) { // pages were re-rendered: drop old compressed copies
+      pageCache.clear();
+      generation = rendered.generation;
+    }
+    const pageBody = rendered.pages.get(req.path);
+    if (pageBody) {
+      res.set('Cache-Control', 'no-cache');
+      return pageCache.send(req, res, req.path, pageBody, 'html');
+    }
+    const file = rendered.files.get(req.path);
+    if (file) {
+      res.set('Cache-Control', 'public, max-age=3600');
+      return pageCache.send(req, res, req.path, file.body, file.type);
     }
     // /products/ → /products (one canonical URL per page)
     const trimmed = req.path.replace(/\/+$/, '');
@@ -91,14 +115,35 @@ export function createPublicRouter({ config, data, rendered, media, logger }) {
   }, express.static(config.uploadDir, { index: false, redirect: false, dotfiles: 'deny', fallthrough: true }));
 
   // ── Static assets ──────────────────────────────────────────────────────
+  // Text files (CSS, JS, SVG) are served compressed; the rest (images, fonts, video)
+  // are already compressed formats and go straight through express.static.
+  const staticCache = createCompressionCache();
+  router.use(async (req, res, next) => {
+    if ((req.method !== 'GET' && req.method !== 'HEAD') || !TEXT_FILE.test(req.path)) return next();
+    let file;
+    try {
+      file = path.join(config.publicDir, path.normalize(decodeURIComponent(req.path)));
+    } catch {
+      return next();
+    }
+    if (!file.startsWith(config.publicDir + path.sep)) return next(); // path traversal
+    let stat;
+    try {
+      stat = await fs.stat(file);
+    } catch {
+      return next();
+    }
+    if (!stat.isFile()) return next();
+    res.set('Cache-Control', cacheControl(req, file));
+    return staticCache.send(req, res, `${file}:${stat.mtimeMs}`, await fs.readFile(file), path.extname(file));
+  });
+
   router.use(express.static(config.publicDir, {
     index: false,
     redirect: false,
     dotfiles: 'ignore',
     setHeaders(res, file) {
-      // CSS/JS change between deploys without new names: always revalidate (ETag → 304).
-      // Fonts, images and video are stable: cache for a week.
-      res.set('Cache-Control', /\.(css|js)$/.test(file) ? 'no-cache' : 'public, max-age=604800');
+      res.set('Cache-Control', cacheControl(res.req, file));
     },
   }));
 

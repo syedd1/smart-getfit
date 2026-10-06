@@ -22,10 +22,24 @@ export function img(ctx, image, alt, { cls = '', lazy = true, priority = false, 
   return raw(`<img${attrs} decoding="async">`);
 }
 
+// A built-in photo with its smaller copies (see `npm run optimize-images`) as srcset,
+// and version-stamped URLs so it can be cached long-term.
 export function staticImage(ctx, src, alt = '') {
-  const size = ctx.size(src);
-  return { src, width: size?.[0], height: size?.[1], alt, full: src };
+  const size = ctx.assets.size(src);
+  const variants = ctx.assets.variants(src);
+  const display = variants.filter((v) => v.width <= 800).at(-1) ?? variants.at(-1);
+  return {
+    src: display ? display.url : ctx.assets.url(src),
+    srcset: variants.length > 1 ? variants.map((v) => `${v.url} ${v.width}w`).join(', ') : '',
+    width: size?.[0],
+    height: size?.[1],
+    alt,
+    full: ctx.assets.url(src),
+  };
 }
+
+const LOGO = '/assets/logo-sm.webp';
+export const logo = (ctx, { px, cls = '', alt = '', lazy = false }) => img(ctx, staticImage(ctx, LOGO, alt), alt, { cls, lazy, sizes: `${px}px` });
 
 // A product's photo: the first one uploaded in the admin panel, else the built-in image.
 export function productImage(ctx, p) {

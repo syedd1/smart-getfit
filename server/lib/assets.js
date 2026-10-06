@@ -1,5 +1,9 @@
-// Intrinsic sizes of the built-in WebP images in public/assets, read from the file
-// header once and cached, so every <img> gets explicit width/height (no layout shift).
+// Facts about the built-in files in public/, read once and cached:
+//   size(src)     intrinsic WebP dimensions, so every <img> gets width/height
+//   url(src)      src?v=<content hash> — a changed file gets a new URL, so files can be
+//                 cached for a year without anyone seeing a stale one
+//   variants(src) smaller copies made by `npm run optimize-images` (name-400.webp, …)
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -15,20 +19,38 @@ export function webpSize(buffer) {
   return null;
 }
 
-export function createAssetSizer(publicDir) {
+export const VARIANT_WIDTHS = [400, 800];
+export const variantPath = (src, width) => src.replace(/\.webp$/, `-${width}.webp`);
+
+export function createAssets(publicDir) {
   const cache = new Map();
-  return (src) => {
+
+  function info(src) {
     if (!cache.has(src)) {
-      let size = null;
+      let entry = { size: null, version: null };
       try {
-        const fd = fs.openSync(path.join(publicDir, src), 'r');
-        const head = Buffer.alloc(32);
-        fs.readSync(fd, head, 0, 32, 0);
-        fs.closeSync(fd);
-        size = webpSize(head);
-      } catch { /* missing file: rendered without dimensions */ }
-      cache.set(src, size);
+        const data = fs.readFileSync(path.join(publicDir, src));
+        entry = {
+          size: src.endsWith('.webp') ? webpSize(data) : null,
+          version: crypto.createHash('sha256').update(data).digest('hex').slice(0, 10),
+        };
+      } catch { /* missing file: served unversioned, without dimensions */ }
+      cache.set(src, entry);
     }
     return cache.get(src);
+  }
+
+  return {
+    size: (src) => info(src).size,
+    url: (src) => (info(src).version ? `${src}?v=${info(src).version}` : src),
+    // [{ width, url }] for each smaller copy that exists, plus the original.
+    variants(src) {
+      const original = info(src).size;
+      if (!original) return [];
+      const smaller = VARIANT_WIDTHS
+        .filter((w) => w < original[0] && info(variantPath(src, w)).size)
+        .map((w) => ({ width: w, url: this.url(variantPath(src, w)) }));
+      return [...smaller, { width: original[0], url: this.url(src) }];
+    },
   };
 }

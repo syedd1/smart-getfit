@@ -1,7 +1,8 @@
 // Homepage (design boards 1b desktop + 1c mobile).
-import { html, jsonScript } from '../lib/html.js';
+import { html } from '../lib/html.js';
 import { page } from './layout.js';
-import { icon, img, external, featuredCard, catalogueCard, snackCard, productSheet, productImage, staticImage, preloadImage, SIZES } from './parts.js';
+import { icon, img, external, logo, featuredCard, catalogueCard, snackCard, productSheet, productImage, staticImage, preloadImage, SIZES } from './parts.js';
+import { storeJsonLd, websiteJsonLd } from './seo.js';
 
 // Built-in store photos, used until the admin uploads hero / banner / gallery media.
 const DEFAULT_MEDIA = {
@@ -20,27 +21,6 @@ const DEFAULT_MEDIA = {
     { kind: 'image', src: '/assets/products/big-ramy-labs-red-rex-big-whey.webp', label: 'Ready at the counter' },
   ],
 };
-
-function storeJsonLd(site) {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'Store',
-    name: site.name,
-    description: 'Sports nutrition and supplement store offering retail and wholesale.',
-    foundingDate: String(site.foundingYear),
-    logo: '/assets/logo-sm.webp',
-    image: ['/assets/store/exterior.webp', '/assets/store/interior.webp', '/assets/store/shelves.webp'],
-    telephone: site.phone.international,
-    address: {
-      '@type': 'PostalAddress',
-      streetAddress: `${site.address.street}, ${site.address.area}`,
-      addressLocality: site.address.city,
-      addressRegion: site.address.region,
-      addressCountry: site.address.country,
-    },
-    areaServed: site.deliveryAreas.map((name) => ({ '@type': 'Place', name: name === 'All Karachi' ? 'Karachi' : `${name}, Karachi` })),
-  };
-}
 
 export function homePage(ctx) {
   const { site, catalogue } = ctx;
@@ -74,7 +54,7 @@ export function homePage(ctx) {
 
   const galleryItem = (g, i) => html`<figure class="gitem${pairIndexes.includes(i) ? ' gitem--paired' : ''}" data-kind="${g.kind}" data-label="${g.label}" data-full="${g.image.full}"${g.video ? html` data-video="${g.video}"` : ''}>
 ${img(ctx, g.image, g.kind === 'video' ? '' : `${g.label} at ${site.name}, ${site.address.area}`, { cls: 'gitem__img', sizes: SIZES.gallery })}
-${g.kind === 'video' ? html`<video class="gitem__video" muted loop playsinline preload="none" poster="${g.image.src}" data-src="${g.video}" aria-label="Video tour of ${site.name}"></video>` : ''}
+${g.kind === 'video' ? html`<video class="gitem__video" muted loop playsinline preload="none" data-src="${g.video}" aria-label="Video tour of ${site.name}"></video>` : ''}
 <figcaption>${g.label}</figcaption>
 <button class="gitem__open" type="button" aria-label="Open ${g.label}" data-lb="${i}">${icon('expand', 'i--12')}</button>
 </figure>`;
@@ -82,7 +62,7 @@ ${g.kind === 'video' ? html`<video class="gitem__video" muted loop playsinline p
   const main = html`<main id="main">
 
 <section class="hero" id="home" aria-labelledby="hero-title">
-<img class="hero__mark" src="/assets/logo-sm.webp" width="480" height="480" alt="">
+${logo(ctx, { px: 520, cls: 'hero__mark', lazy: true })}
 <span class="hero__badge only-m">${icon('pin-bold', 'i--12')}${site.address.area}, ${site.address.city}</span>
 <div class="hero__body">
 <span class="hero__bar only-m"></span>
@@ -195,7 +175,7 @@ ${cantFind(ctx)}
 <p>Smart GetFit Nutrition provides sports nutrition, supplements, fitness beverages, snacks, coffee and related products to customers in Karachi.</p>
 <p>Since 2015 we have supplied sports nutrition at wholesale as well as retail, so bulk orders come from the same shelves our walk-in customers shop.</p>
 </div>
-<div class="about__media">${img(ctx, DEFAULT_MEDIA.about.src, DEFAULT_MEDIA.about.alt)}<img class="about__logo" src="/assets/logo-sm.webp" width="480" height="480" alt="${site.name} logo" loading="lazy"></div>
+<div class="about__media">${img(ctx, DEFAULT_MEDIA.about.src, DEFAULT_MEDIA.about.alt)}${logo(ctx, { px: 120, cls: 'about__logo', alt: `${site.name} logo`, lazy: true })}</div>
 <div class="band">
 <div class="band__cell band__cell--accent">${icon('box', 'i--34')}<h3>Wholesale</h3><span class="band__big">Since ${site.foundingYear}</span><span>Wholesale and retail from one store in ${site.address.area}</span></div>
 <div class="band__cell"><h3>Warehouse</h3><span>Our own warehouse for bulk orders, delivered across ${site.address.city}.</span></div>
@@ -237,15 +217,15 @@ ${site.reviews.items.map((r) => html`<article class="review"><span class="stars"
 
   return page(ctx, {
     title: `${site.name} | Sports Nutrition & Supplements in ${site.address.area}, ${site.address.city}`,
-    description: `Sports nutrition and supplement store in ${site.address.area}, ${site.address.city} since ${site.foundingYear}. Protein, pre-workout, BCAAs, multivitamins, shakes, snacks and coffee. Retail and wholesale. Ask for prices on WhatsApp.`,
+    description: `Supplement store in ${site.address.area}, ${site.address.city} since ${site.foundingYear}: whey protein, pre-workout, creatine, BCAAs and snacks. Retail & wholesale. Ask on WhatsApp.`,
+    path: '/',
+    image: hero,
+    jsonLd: [
+      storeJsonLd(ctx, [hero.full, staticImage(ctx, DEFAULT_MEDIA.about.src).full, staticImage(ctx, '/assets/store/shelves.webp').full]),
+      websiteJsonLd(ctx),
+    ],
     current: 'home',
-    head: html`${preloadImage(hero, SIZES.hero)}
-<meta property="og:type" content="website">
-<meta property="og:title" content="${site.name} — ${site.address.area}, ${site.address.city}">
-<meta property="og:description" content="Sports nutrition and supplements since ${site.foundingYear}. Retail and wholesale. Visit the store or ask on WhatsApp.">
-<meta property="og:image" content="${hero.src}">
-<meta property="og:locale" content="en_PK">
-<script type="application/ld+json">${jsonScript(storeJsonLd(site))}</script>`,
+    head: preloadImage(hero, SIZES.hero),
     scripts: ['catalogue', 'gallery'],
     main,
     afterPage: productSheet(ctx, products),

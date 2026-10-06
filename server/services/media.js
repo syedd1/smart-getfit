@@ -169,6 +169,12 @@ export function createMediaService({ db, storage, catalogue, logger, onChange: n
         .map(toPublicMedia);
     },
 
+    // When media last changed (for sitemap lastmod), or null when there is none.
+    lastChanged() {
+      const latest = db.prepare('SELECT MAX(updated_at) FROM media').pluck().get();
+      return latest ? new Date(latest) : null;
+    },
+
     listAdmin() {
       return q.list.all({ section: null, productId: null }).map((row) => ({
         ...toAdminMedia(row),

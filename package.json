@@ -12,6 +12,7 @@
     "dev": "node --watch --env-file-if-exists=.env server/index.js",
     "migrate": "node --env-file-if-exists=.env scripts/migrate.js",
     "hash-password": "node scripts/hash-password.js",
+    "optimize-images": "node scripts/optimize-images.js",
     "test": "node --test \"tests/**/*.test.js\""
   },
   "dependencies": {

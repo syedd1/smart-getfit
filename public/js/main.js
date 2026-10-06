@@ -36,11 +36,13 @@
         io.unobserve(entry.target);
       }
     }, { threshold: 0.12 });
-    for (const el of document.querySelectorAll('[data-reveal]')) {
-      if (el.getBoundingClientRect().top > window.innerHeight) {
-        el.classList.add('is-pending');
-        io.observe(el);
-      }
+    // Measure everything first, then change classes: interleaving the two would force a
+    // full layout recalculation per element.
+    const below = [...document.querySelectorAll('[data-reveal]')]
+      .filter((el) => el.getBoundingClientRect().top > window.innerHeight);
+    for (const el of below) {
+      el.classList.add('is-pending');
+      io.observe(el);
     }
   }
 
@@ -50,12 +52,16 @@
     let queued = false;
     const update = () => {
       queued = false;
-      for (const layer of layers) {
-        if (!mobileLayout.matches) { layer.style.transform = ''; continue; }
-        const top = layer.parentElement.getBoundingClientRect().top;
-        const shift = Math.max(-36, Math.min(36, -top * 0.14));
-        layer.style.transform = `translate3d(0, ${shift.toFixed(1)}px, 0)`;
+      if (!mobileLayout.matches) {
+        for (const layer of layers) layer.style.transform = '';
+        return;
       }
+      // All reads, then all writes (see above).
+      const tops = layers.map((layer) => layer.parentElement.getBoundingClientRect().top);
+      layers.forEach((layer, i) => {
+        const shift = Math.max(-36, Math.min(36, -tops[i] * 0.14));
+        layer.style.transform = `translate3d(0, ${shift.toFixed(1)}px, 0)`;
+      });
     };
     const queue = () => { if (!queued) { queued = true; requestAnimationFrame(update); } };
     window.addEventListener('scroll', queue, { passive: true });

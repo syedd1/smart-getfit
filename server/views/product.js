@@ -2,6 +2,7 @@
 import { html } from '../lib/html.js';
 import { page } from './layout.js';
 import { icon, img, external, catalogueCard, relatedCard, productSheet, productImage, preloadImage, SIZES } from './parts.js';
+import { productJsonLd, breadcrumbJsonLd } from './seo.js';
 import { cantFind } from './home.js';
 
 const crumbs = (items) => html`<nav class="crumbs" aria-label="Breadcrumb"><ol>${items.map(([label, href], i) => html`${i ? html`<li aria-hidden="true">/</li>` : ''}<li${href ? '' : html` aria-current="page"`}>${href ? html`<a href="${href}">${label}</a>` : label}</li>`)}</ol></nav>`;
@@ -17,7 +18,14 @@ export function productPage(ctx, p) {
   const image = productImage(ctx, p);
   return page(ctx, {
     title: `${p.brand} ${p.name} ${p.size} | Smart GetFit Nutrition ${site.address.city}`,
-    description: `${p.brand} ${p.name} (${p.variant}) at ${site.name}, ${site.address.area}, ${site.address.city}. Retail and wholesale — ${p.priceText ? `${p.priceText}.` : 'ask for the price on WhatsApp.'}`,
+    description: `${p.brand} ${p.name} (${p.variant}) in ${site.address.city} at ${site.name}. Retail & wholesale — ${p.priceText ? `${p.priceText}.` : 'ask for the price on WhatsApp.'}`,
+    path: p.url,
+    image,
+    ogType: 'product',
+    jsonLd: [
+      productJsonLd(ctx, p, image),
+      breadcrumbJsonLd(ctx, [['Products', '/products'], [p.categoryName, `/products/${p.category}`], [p.name, p.url]]),
+    ],
     current: 'products',
     head: preloadImage(image, SIZES.productMain),
     beforeMain: crumbs([['Products', '/products'], [p.categoryName, `/products/${p.category}`], [p.name, null]]),
@@ -55,8 +63,11 @@ export function listingPage(ctx, category) {
   return page(ctx, {
     title: `${heading} | ${site.name}`,
     description: category
-      ? `${category.name} at ${site.name}, ${site.address.area}, ${site.address.city}. ${products.length} product${products.length === 1 ? '' : 's'} in store — retail and wholesale, ask for prices on WhatsApp.`
-      : `Every product at ${site.name}, ${site.address.area}, ${site.address.city}: protein, pre-workout, BCAAs, creatine, multivitamins and snacks. Ask for prices on WhatsApp.`,
+      ? `${category.name} in ${site.address.city} at ${site.name}, ${site.address.area}. Retail & wholesale — ask for prices on WhatsApp.`
+      : `All supplements at ${site.name}, ${site.address.area}, ${site.address.city}: protein, pre-workout, creatine, BCAAs, vitamins and snacks. Ask on WhatsApp.`,
+    path: category ? category.url : '/products',
+    image: products[0] ? productImage(ctx, products[0]) : null,
+    jsonLd: [breadcrumbJsonLd(ctx, category ? [['Products', '/products'], [category.name, category.url]] : [['Products', '/products']])],
     current: 'products',
     scripts: ['catalogue'],
     beforeMain: crumbs(category ? [['Products', '/products'], [category.name, null]] : [['Products', null]]),

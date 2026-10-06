@@ -46,7 +46,7 @@ button, input, select { font: inherit; color: inherit; }
 }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn--primary { background: var(--color-accent); color: var(--color-on-accent); }
-.btn--primary:not(:disabled):hover { background: var(--color-accent-600); }
+.btn--primary:not(:disabled):hover { background: var(--color-accent-500); }
 .btn--ghost { border-color: var(--color-neutral-400); }
 .btn--ghost:not(:disabled):hover { border-color: var(--color-text); }
 .btn--danger { background: #b3261e; color: #fff; }
@@ -93,7 +93,7 @@ button, input, select { font: inherit; color: inherit; }
 .card.is-first { border-color: var(--color-accent); }
 .card__img { position: relative; background: #000; }
 .card__img img { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; }
-.card__badge { position: absolute; top: 0; left: 0; padding: 3px 8px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: var(--color-accent); color: #fff; }
+.card__badge { position: absolute; top: 0; left: 0; padding: 3px 8px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: var(--color-accent-strong); color: #fff; }
 .card__body { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
 .card__meta { font-size: 12px; color: var(--color-neutral-700); }
 .card__row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
@@ -111,7 +111,7 @@ button, input, select { font: inherit; color: inherit; }
   max-width: min(560px, calc(100% - 32px)); padding: 12px 16px;
   background: var(--color-text); color: var(--color-bg); font-weight: 600; box-shadow: var(--shadow-lg);
 }
-.toast.is-error { background: var(--color-accent); color: #fff; }
+.toast.is-error { background: var(--color-accent-strong); color: #fff; }
 .confirm { max-width: 380px; width: calc(100% - 32px); padding: 20px; border: var(--rule); background: var(--color-surface); color: var(--color-text); }
 .confirm::backdrop { background: rgba(0, 0, 0, .7); }
 .confirm[open] { display: flex; flex-direction: column; gap: 12px; }

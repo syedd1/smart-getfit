@@ -1,6 +1,7 @@
 // The Smart GetFit Nutrition — single Node process serving the site, API and uploads.
 //   createApp() builds the Express app from already-loaded config, data and database (used by tests).
 //   start() loads config, data and the database, refusing to start if any is invalid.
+import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import express from 'express';
@@ -22,9 +23,21 @@ export function createApp({ config, logger, db, data }) {
   const storage = createLocalStorage({ dir: config.uploadDir });
 
   // Pages are rendered in memory; any media change re-renders them (takes ~50 ms).
-  const rendered = {};
+  const rendered = { generation: 0 };
   let media;
-  const render = () => Object.assign(rendered, renderSite(data, { publicDir: config.publicDir, media: media.grouped() }));
+  const dataChanged = ['products.json', 'site.json']
+    .map((f) => fs.statSync(path.join(config.dataDir, f)).mtime)
+    .reduce((a, b) => (a > b ? a : b));
+  const render = () => Object.assign(rendered, renderSite(data, {
+    publicDir: config.publicDir,
+    media: media.grouped(),
+    site: {
+      siteUrl: config.siteUrl,
+      adminPath: config.adminPath,
+      isProduction: config.isProduction,
+      lastModified: [dataChanged, media.lastChanged()].filter(Boolean).reduce((a, b) => (a > b ? a : b)),
+    },
+  }), { generation: rendered.generation + 1 });
   media = createMediaService({ db, storage, catalogue: data.catalogue, logger, onChange: render });
   render();
 

@@ -37,10 +37,9 @@
   --color-accent: #ec3013;      /* brand red */
   --color-accent-100: #2a1210;
   --color-accent-500: #ff563c;
-  --color-accent-600: #dd2b0f;  /* hover */
-  --color-accent-press: #ae1800;
+  --color-accent-strong: #dd2b0f; /* behind white text: 4.74:1 (brand red is 4.2:1) */
   --color-accent-text: #ff9783; /* small red text on dark */
-  --color-on-accent: #121111;   /* button labels on red (4.5:1) */
+  --color-on-accent: #000;      /* button labels on brand red: 5.0:1 */
 
   --color-neutral-100: #1c1b1b;
   --color-neutral-200: #262424;
