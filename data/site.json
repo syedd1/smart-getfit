@@ -17,7 +17,7 @@
     "country": "PK",
     "display": "Plot C15, Sector Z-3 Sector Z Gulshan-e-Maymar, Karachi"
   },
-  "geo": { "lat": 25.016606579430178, "lng": 67.12167678465528 },
+  "geo": { "lat": 25.0164781, "lng": 67.1217418 },
   "hours": {
     "display": "5 PM – 12 AM, Monday to Saturday",
     "schedule": [
@@ -29,8 +29,8 @@
     ]
   },
   "maps": {
-    "url": "https://maps.app.goo.gl/jom8hF1y4CfwPLLk7",
-    "embedUrl": "https://maps.google.com/maps?q=25.016606579430178,67.12167678465528&z=17&output=embed"
+    "url": "https://maps.app.goo.gl/qbCxKYKHAkH5HPhNA",
+    "embedUrl": "https://maps.google.com/maps?q=25.0164781,67.1217418&z=17&output=embed"
   },
   "social": {
     "instagram": "https://www.instagram.com/thesmartgetfit_nutrition/",
@@ -49,7 +49,7 @@
   "reviews": {
     "rating": 5,
     "count": 3,
-    "url": "https://maps.app.goo.gl/jom8hF1y4CfwPLLk7",
+    "url": "https://maps.app.goo.gl/qbCxKYKHAkH5HPhNA",
     "items": [
       { "name": "Moazzam Azeem", "text": "The best shop for the Fitness products in town 😍 Highly recommended !!" },
       { "name": "Mohammad Shahbaz", "text": "The best one stop solution for all fitness freaks in Town. 10/10" },
