@@ -8,8 +8,8 @@
     "node": ">=22.9"
   },
   "scripts": {
-    "start": "node --env-file-if-exists=.env server/index.js",
-    "dev": "node --watch --env-file-if-exists=.env server/index.js",
+    "start": "node --env-file-if-exists=.env server/main.js",
+    "dev": "node --watch --env-file-if-exists=.env server/main.js",
     "migrate": "node --env-file-if-exists=.env scripts/migrate.js",
     "hash-password": "node scripts/hash-password.js",
     "optimize-images": "node scripts/optimize-images.js",

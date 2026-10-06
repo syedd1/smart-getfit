@@ -328,7 +328,7 @@ Hosting-specific steps (server setup, domain and HTTPS) will be added once the h
   - `TRUST_PROXY=loopback` (proxy on the same machine) or `1` (host's proxy)
   - `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `SESSION_SECRET` (new values — don't reuse development ones)
   - optionally a less guessable `ADMIN_PATH`
-- [ ] `npm ci --omit=dev` then `npm start` (pending migrations run automatically).
+- [ ] `npm ci --omit=dev` then `npm start` (pending migrations run automatically). If the host asks for an **entry file** instead of a start command, use **`server/main.js`** — it starts the site however the host launches it (not `server/index.js`, which only defines the app).
 - [ ] Daily backups, copied off the server ([§10](#10-backups-and-restore)).
 - [ ] After launch: check `/healthz`, `/robots.txt`, `/sitemap.xml`, log in to the admin panel, upload a test photo, and run Lighthouse (Chrome DevTools → Lighthouse → Mobile) on the live site.
 - [ ] Submit `https://your-domain/sitemap.xml` in Google Search Console, and use the same name, address and phone as on your Google Business Profile.
@@ -373,6 +373,8 @@ npm outdated
 | "Too many attempts" on login | 5 wrong attempts lock that connection for 15 minutes. Wait, or restart the server. |
 | On the live site, *everyone* gets locked out after a few bad logins | `TRUST_PROXY` is wrong, so all visitors look like one IP. See [§3](#3-configuration-env). |
 | Admin panel says it is "not configured" | `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` and `SESSION_SECRET` must all be set; restart after setting them. |
+| Host log says "App did not call listen() within 3 seconds" and nothing else | The host is running the wrong entry file (it must be `server/main.js`), or an old version of the code is deployed. |
+| Visiting the site shows "The site is starting" for a few seconds | Normal right after a start or restart; the port opens first and the site follows about a second later. If it never goes away, check the logs for `Refusing to start`. |
 | Edited `products.json` / `site.json` but nothing changed | Restart the server — data files are read at startup. |
 | Replaced a built-in photo but the old one shows | Restart the server (version stamps are computed at startup), then run `npm run optimize-images`. |
 | Upload rejected | The message says why: not a real JPEG/PNG/WebP, over the size limit, over 40 megapixels, or the hourly limit. |

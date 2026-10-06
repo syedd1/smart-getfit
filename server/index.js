@@ -1,9 +1,9 @@
 // The Smart GetFit Nutrition — single Node process serving the site, API and uploads.
 //   createApp() builds the Express app from already-loaded config, data and database (used by tests).
 //   start() loads config, data and the database, refusing to start if any is invalid.
+//   Importing this file does not start anything; server/main.js is the entry point.
 import fs from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import express from 'express';
 import { loadConfig, ConfigError, ROOT } from './config.js';
 import { createLogger } from './lib/logger.js';
@@ -84,7 +84,9 @@ export function createApp({ config, logger, db, data }) {
   return { app, auth, storage, media };
 }
 
-export async function start() {
+// early: { server, mount } — a server that is already listening (see server/main.js);
+// mount(app) hands it the finished app. Without it, start() opens its own port.
+export async function start({ early } = {}) {
   let config;
   try {
     config = loadConfig();
@@ -115,12 +117,18 @@ export async function start() {
   const sweep = setInterval(() => auth.removeStaleSessions(), 60 * 60_000);
   sweep.unref();
 
-  const server = app.listen(config.port, config.host, () => {
-    logger.info('server started', {
-      url: `http://${config.host}:${config.port}`, env: config.env,
-      products: data.catalogue.products.length, admin: config.admin ? config.adminPath : 'disabled',
-    });
+  const announce = () => logger.info('server started', {
+    url: `http://${config.host}:${config.port}`, env: config.env,
+    products: data.catalogue.products.length, admin: config.admin ? config.adminPath : 'disabled',
   });
+  let server;
+  if (early) {
+    server = early.server;
+    early.mount(app);
+    announce();
+  } else {
+    server = app.listen(config.port, config.host, announce);
+  }
   server.on('error', (err) => {
     logger.error('server error', { err });
     process.exit(1);
@@ -150,4 +158,3 @@ export async function start() {
   process.on('unhandledRejection', (err) => { logger.error('unhandled rejection', { err }); process.exit(1); });
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) start();
