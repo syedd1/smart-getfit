@@ -106,7 +106,10 @@ export const siteSchema = z.strictObject({
 
 // ── Admin API input ───────────────────────────────────────────────────────
 const section = z.enum(['product', 'hero', 'banner', 'gallery']);
-const alt = z.string().trim().max(200, 'Alt text can be at most 200 characters');
+// Control characters and bidirectional overrides (which can make text display as
+// something else) are removed rather than stored.
+const UNSAFE_TEXT = /[\u0000-\u001f\u007f-\u009f‎‏‪-‮⁦-⁩]/g;
+const alt = z.string().transform((s) => s.replace(UNSAFE_TEXT, '').trim()).pipe(z.string().max(200, 'Alt text can be at most 200 characters'));
 const emptyToUndefined = (v) => (v === '' || v === null ? undefined : v);
 
 export const loginSchema = z.strictObject({

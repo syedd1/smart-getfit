@@ -305,3 +305,17 @@ test('a write failure part-way leaves no files and no database row', async () =>
   assert.deepEqual(app.files(), filesBefore);
   assert.ok(original);
 });
+
+test('alt text loses control and direction-override characters', async () => {
+  const res = await upload([[await make(20, 20, 'png'), 'a.png', 'image/png']], { section: 'gallery', alt: 'Whey\u0000 on‮ the shelf\u0007' });
+  assert.equal(res.status, 201);
+  assert.equal((await res.json()).created[0].alt, 'Whey on the shelf');
+});
+
+test('photos of products removed from products.json are not public', async () => {
+  app.db.prepare("INSERT INTO media (filename_base, product_id, section, width, height) VALUES ('ffffffffffffffffffffffffffffffff', 'discontinued-product', 'product', 400, 400)").run();
+  const all = (await (await app.get('/api/media')).json()).media;
+  assert.ok(!all.some((m) => m.productId === 'discontinued-product'));
+  const adminView = (await (await admin.send('GET', '/api/admin/media')).json()).media;
+  assert.ok(adminView.some((m) => m.productId === 'discontinued-product' && m.productMissing), 'the admin still sees them, flagged');
+});

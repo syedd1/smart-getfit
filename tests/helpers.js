@@ -38,6 +38,7 @@ export async function startApp(env = {}) {
 export const PRODUCTION_ENV = {
   NODE_ENV: 'production',
   SITE_URL: 'https://smartgetfit.example.pk',
+  TRUST_PROXY: 'loopback',
   ADMIN_USERNAME: 'owner',
   ADMIN_PASSWORD_HASH: '$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHQ$aGFzaGhhc2hoYXNoaGFzaGhhc2g',
   SESSION_SECRET: 'Zq8vN3kT1pW7rY2mL5xC9bH4dF6gJ0sA',

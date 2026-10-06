@@ -63,6 +63,16 @@ export function loadConfig(env = process.env) {
     else if (PLACEHOLDER.test(c.SESSION_SECRET) || new Set(c.SESSION_SECRET).size < 10) problems.push('SESSION_SECRET looks like a placeholder; use a random value');
   }
   if (production && !c.SITE_URL.startsWith('https://')) problems.push('SITE_URL must use https:// in production');
+
+  // Rate limits and the login lockout are per visitor IP, so Express must read the
+  // real IP from the proxy — and only from the proxy.
+  const trustProxy = parseTrustProxy(c.TRUST_PROXY);
+  if (production && trustProxy === true) {
+    problems.push('TRUST_PROXY=true believes any X-Forwarded-For header, so visitors could fake their IP and dodge rate limits. Use "loopback" (proxy on this server) or the number of proxy hops, e.g. 1.');
+  }
+  if (production && trustProxy === false && ['127.0.0.1', '::1', 'localhost'].includes(c.HOST)) {
+    problems.push('HOST is a loopback address, so the site sits behind a reverse proxy: set TRUST_PROXY=loopback (or the number of proxy hops). Otherwise every visitor shares one IP, and a stranger\'s failed logins would lock the admin out.');
+  }
   if (problems.length) throw new ConfigError(problems);
 
   const resolve = (p) => (path.isAbsolute(p) ? p : path.join(ROOT, p));
@@ -72,7 +82,7 @@ export function loadConfig(env = process.env) {
     host: c.HOST,
     port: c.PORT,
     siteUrl: c.SITE_URL.replace(/\/+$/, ''),
-    trustProxy: parseTrustProxy(c.TRUST_PROXY),
+    trustProxy,
     databasePath: c.DATABASE_PATH === ':memory:' ? ':memory:' : resolve(c.DATABASE_PATH),
     uploadDir: resolve(c.UPLOAD_DIR),
     uploadMaxBytes: Math.round(c.UPLOAD_MAX_MB * 1024 * 1024),

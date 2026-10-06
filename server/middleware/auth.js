@@ -11,6 +11,8 @@ export const SESSION_LIFETIME_MS = 12 * 60 * 60 * 1000;
 export const SESSION_IDLE_MS = 2 * 60 * 60 * 1000;
 const TOUCH_EVERY_MS = 60 * 1000; // don't write last_seen_at on every request
 const TOKEN_FORMAT = /^[A-Za-z0-9_-]{43}$/; // 32 bytes, base64url
+// Each Argon2 check holds 64 MiB; a flood of logins must not exhaust memory.
+const MAX_CONCURRENT_PASSWORD_CHECKS = 2;
 
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest();
 export const hashToken = (token) => sha256(token).toString('hex');
@@ -41,21 +43,45 @@ export function createAuth({ db, config, now = Date.now }) {
   }
 
   const isLive = (row, t) => row.expires_at > t && row.last_seen_at > t - SESSION_IDLE_MS;
+  let checksRunning = 0;
 
   return {
     cookieName,
 
+    // When the admin username or password hash differs from the one the sessions were
+    // created under, every session is ended. Returns how many were revoked.
+    revokeSessionsIfCredentialsChanged() {
+      const fingerprint = config.admin
+        ? crypto.createHash('sha256').update(`${config.admin.username}\n${config.admin.passwordHash}`).digest('hex')
+        : 'admin-disabled';
+      return db.transaction(() => {
+        const stored = db.prepare("SELECT value FROM settings WHERE key = 'admin_credentials'").pluck().get();
+        if (stored === fingerprint) return 0;
+        const revoked = stored === undefined ? 0 : db.prepare('DELETE FROM sessions').run().changes;
+        db.prepare("INSERT INTO settings (key, value) VALUES ('admin_credentials', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(fingerprint);
+        return revoked;
+      })();
+    },
+
     // Always runs the Argon2 check, so a wrong username takes as long as a wrong password.
     async verifyCredentials(username, password) {
       if (!config.admin) return false;
-      const userOk = crypto.timingSafeEqual(sha256(String(username)), sha256(config.admin.username));
-      let passwordOk = false;
-      try {
-        passwordOk = await argon2.verify(config.admin.passwordHash, String(password));
-      } catch {
-        passwordOk = false;
+      if (checksRunning >= MAX_CONCURRENT_PASSWORD_CHECKS) {
+        throw new HttpError(503, 'busy', 'The server is busy. Please try again in a moment.');
       }
-      return userOk && passwordOk;
+      checksRunning += 1;
+      try {
+        const userOk = crypto.timingSafeEqual(sha256(String(username)), sha256(config.admin.username));
+        let passwordOk = false;
+        try {
+          passwordOk = await argon2.verify(config.admin.passwordHash, String(password));
+        } catch {
+          passwordOk = false;
+        }
+        return userOk && passwordOk;
+      } finally {
+        checksRunning -= 1;
+      }
     },
 
     // Issues a fresh session (any session the browser already had is discarded).

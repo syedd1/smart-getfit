@@ -14,10 +14,10 @@ function migrationsDir(files) {
 
 test('the real migrations apply cleanly and only once', () => {
   const db = openDatabase(':memory:');
-  assert.deepEqual(runMigrations(db), ['001_initial.sql']);
+  assert.deepEqual(runMigrations(db), ['001_initial.sql', '002_settings.sql']);
   assert.deepEqual(runMigrations(db), [], 'second run is a no-op');
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").pluck().all();
-  assert.deepEqual(tables, ['media', 'schema_migrations', 'sessions']);
+  assert.deepEqual(tables, ['media', 'schema_migrations', 'sessions', 'settings']);
   db.close();
 });
 

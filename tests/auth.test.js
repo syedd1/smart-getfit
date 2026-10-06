@@ -154,7 +154,7 @@ test('in production the cookie is __Host- prefixed and Secure', async () => {
   const env = await adminEnvironment({ ...PRODUCTION_ENV, ADMIN_PASSWORD_HASH: undefined });
   const app = await startApp({ ...env, ADMIN_PASSWORD_HASH: (await adminEnvironment()).ADMIN_PASSWORD_HASH });
   try {
-    const res = await postLogin(app, ADMIN);
+    const res = await postLogin(app, ADMIN, { origin: PRODUCTION_ENV.SITE_URL });
     assert.equal(res.status, 200);
     assert.match(res.headers.get('set-cookie'), /^__Host-sgfn_admin=[^;]+; Path=\/; HttpOnly; SameSite=Strict; Max-Age=\d+; Secure$/);
   } finally {
@@ -178,4 +178,64 @@ test('stale sessions are swept', () => withApp(async (app) => {
   await login(app); // second login from a cookieless client → two rows
   app.db.prepare('UPDATE sessions SET expires_at = 0').run();
   assert.equal(app.auth.removeStaleSessions(), 2);
+}));
+
+test('changing the admin password or username ends every existing session', async () => {
+  const { openDatabase, runMigrations } = await import('../server/db/db.js');
+  const { createAuth } = await import('../server/middleware/auth.js');
+  const { loadConfig } = await import('../server/config.js');
+  const db = openDatabase(':memory:');
+  runMigrations(db);
+  const env = await adminEnvironment();
+  const configA = loadConfig({ NODE_ENV: 'test', ...env });
+  const res = { append() {} };
+
+  const authA = createAuth({ db, config: configA });
+  assert.equal(authA.revokeSessionsIfCredentialsChanged(), 0, 'first start just records the fingerprint');
+  authA.startSession({ headers: {} }, res);
+  authA.startSession({ headers: {} }, res);
+  assert.equal(createAuth({ db, config: configA }).revokeSessionsIfCredentialsChanged(), 0, 'restart with the same password keeps sessions');
+  assert.equal(db.prepare('SELECT COUNT(*) FROM sessions').pluck().get(), 2);
+
+  const newHash = env.ADMIN_PASSWORD_HASH.replace(/.$/, (c) => (c === 'A' ? 'B' : 'A'));
+  const configB = loadConfig({ NODE_ENV: 'test', ...env, ADMIN_PASSWORD_HASH: newHash });
+  assert.equal(createAuth({ db, config: configB }).revokeSessionsIfCredentialsChanged(), 2);
+  assert.equal(db.prepare('SELECT COUNT(*) FROM sessions').pluck().get(), 0);
+
+  authA.startSession({ headers: {} }, res);
+  const configC = loadConfig({ NODE_ENV: 'test', ...env, ADMIN_PASSWORD_HASH: newHash, ADMIN_USERNAME: 'manager' });
+  assert.equal(createAuth({ db, config: configC }).revokeSessionsIfCredentialsChanged(), 1, 'a new username counts too');
+  db.close();
+});
+
+test('at most two password checks run at once; extra logins are told to retry', () => withApp(async (app) => {
+  const attempts = await Promise.allSettled([1, 2, 3].map(() => app.auth.verifyCredentials(ADMIN.username, ADMIN.password)));
+  assert.deepEqual(attempts.slice(0, 2).map((a) => a.value), [true, true]);
+  assert.equal(attempts[2].status, 'rejected');
+  assert.equal(attempts[2].reason.code, 'busy');
+  assert.equal(attempts[2].reason.status, 503);
+  assert.equal(await app.auth.verifyCredentials(ADMIN.username, ADMIN.password), true, 'free again once the others finish');
+}));
+
+test('in production only the SITE_URL origin may change anything', async () => {
+  const hash = (await adminEnvironment()).ADMIN_PASSWORD_HASH;
+  const app = await startApp({ ...PRODUCTION_ENV, ADMIN_PASSWORD_HASH: hash });
+  try {
+    // The server's own address is not enough in production (Host can be forged).
+    assert.equal((await postLogin(app, ADMIN, { origin: app.url })).status, 403);
+    assert.equal((await postLogin(app, ADMIN, { origin: 'https://www.smartgetfit.example.pk' })).status, 403);
+    assert.equal((await postLogin(app, ADMIN, { origin: PRODUCTION_ENV.SITE_URL })).status, 200);
+  } finally {
+    await app.close();
+  }
+});
+
+test('prototype-pollution style JSON is rejected', () => withApp(async (app) => {
+  const res = await app.get('/api/admin/login', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: app.url },
+    body: '{"username":"owner","password":"x","__proto__":{"isAdmin":true}}',
+  });
+  assert.equal(res.status, 400);
+  assert.equal({}.isAdmin, undefined);
 }));

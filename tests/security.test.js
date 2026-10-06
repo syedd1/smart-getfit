@@ -190,3 +190,17 @@ test('admin page: served under ADMIN_PATH, never indexed or cached, previews all
     await custom.close();
   }
 });
+
+test('production refuses proxy settings that would break per-visitor rate limits', () => {
+  const bad = [
+    [{ TRUST_PROXY: 'true' }, /TRUST_PROXY=true/],
+    [{ TRUST_PROXY: 'false', HOST: '127.0.0.1' }, /set TRUST_PROXY=loopback/],
+    [{ TRUST_PROXY: '', HOST: '127.0.0.1' }, /set TRUST_PROXY=loopback/],
+  ];
+  for (const [override, message] of bad) {
+    assert.throws(() => loadConfig({ ...PRODUCTION_ENV, ...override }), (err) => message.test(err.message), JSON.stringify(override));
+  }
+  assert.doesNotThrow(() => loadConfig({ ...PRODUCTION_ENV, TRUST_PROXY: 'loopback' }));
+  assert.doesNotThrow(() => loadConfig({ ...PRODUCTION_ENV, TRUST_PROXY: '1', HOST: '0.0.0.0' }), 'PaaS: one proxy hop');
+  assert.doesNotThrow(() => loadConfig({ ...PRODUCTION_ENV, TRUST_PROXY: 'false', HOST: '0.0.0.0' }), 'directly exposed, no proxy');
+});

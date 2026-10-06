@@ -162,8 +162,11 @@ export function createMediaService({ db, storage, catalogue, logger, onChange: n
   const filesOf = (row) => variantWidths(row.width).map((w) => variantName(row.filename_base, w));
 
   return {
+    // Photos of products no longer in products.json are not public.
     listPublic({ section = null, productId = null } = {}) {
-      return q.list.all({ section, productId }).map(toPublicMedia);
+      return q.list.all({ section, productId })
+        .filter((row) => row.product_id === null || catalogue.productById.has(row.product_id))
+        .map(toPublicMedia);
     },
 
     listAdmin() {

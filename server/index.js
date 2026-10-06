@@ -29,6 +29,8 @@ export function createApp({ config, logger, db, data }) {
   render();
 
   const auth = createAuth({ db, config });
+  const revoked = auth.revokeSessionsIfCredentialsChanged();
+  if (revoked) logger.warn('admin credentials changed: ended all existing sessions', { sessions: revoked });
   const csrf = createCsrf({ secret: config.sessionSecret || 'admin-disabled' });
 
   const app = express();

@@ -139,3 +139,21 @@ test('uploads are capped at 30 files per hour, counted per file', async () => {
     await app.close();
   }
 });
+
+test('IPv6 clients are limited per /64, IPv4-mapped addresses as IPv4', async () => {
+  const { clientKey } = await import('../server/middleware/rateLimit.js');
+  assert.equal(clientKey('203.0.113.7'), '203.0.113.7');
+  assert.equal(clientKey('::ffff:203.0.113.7'), '203.0.113.7');
+  assert.equal(clientKey('2001:db8:abcd:12:1:2:3:4'), '2001:db8:abcd:12::/64');
+  assert.equal(clientKey('2001:0db8:abcd:0012:ffff::9'), '2001:db8:abcd:12::/64', 'same /64, different host part');
+  assert.equal(clientKey('2001:db8::1'), '2001:db8:0:0::/64');
+  assert.notEqual(clientKey('2001:db8:abcd:13::1'), clientKey('2001:db8:abcd:12::1'));
+});
+
+test('the store stays bounded under a flood of addresses', () => {
+  const store = new MemoryStore({ maxEntries: 100 });
+  for (let i = 0; i < 1000; i += 1) store.increment(`ip-${i}`, 60_000, 0);
+  assert.ok(store.entries.size <= 100);
+  assert.ok(store.entries.has('ip-999'), 'newest entries are kept');
+  store.close();
+});

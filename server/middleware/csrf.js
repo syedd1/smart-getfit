@@ -8,15 +8,16 @@ import { HttpError } from './errors.js';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-export function sameOrigin({ siteUrl }) {
+// In production only SITE_URL's origin is accepted; in development the address the
+// server is actually reached on (localhost, a LAN IP for phone testing) also counts.
+export function sameOrigin({ siteUrl, isProduction }) {
   const siteOrigin = new URL(siteUrl).origin;
   return (req, res, next) => {
     if (SAFE_METHODS.has(req.method)) return next();
     const origin = req.get('origin');
-    const ownOrigin = `${req.protocol}://${req.get('host')}`;
     const fetchSite = req.get('sec-fetch-site');
     const allowed = origin
-      ? origin === siteOrigin || origin === ownOrigin
+      ? origin === siteOrigin || (!isProduction && origin === `${req.protocol}://${req.get('host')}`)
       : !fetchSite || fetchSite === 'same-origin' || fetchSite === 'none';
     return allowed ? next() : next(new HttpError(403, 'cross_origin', 'Request refused.'));
   };
