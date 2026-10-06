@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Media admin | The Smart GetFit Nutrition</title>
+<link rel="icon" href="/assets/logo-sm.webp" type="image/webp">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="admin.css">
+<script src="admin.js" defer></script>
+</head>
+<body>
+<header class="bar">
+  <img class="bar__logo" src="/assets/logo-sm.webp" width="480" height="480" alt="">
+  <span class="bar__title">Media admin</span>
+  <a class="bar__link" href="/" target="_blank" rel="noopener">View site ↗</a>
+  <button class="btn btn--ghost" type="button" data-logout hidden>Log out</button>
+</header>
+
+<main class="wrap">
+  <p class="notice" data-boot>Loading…</p>
+  <noscript><p class="notice notice--error">The admin panel needs JavaScript.</p></noscript>
+
+  <!-- Login -->
+  <section class="login" data-view="login" hidden aria-labelledby="login-title">
+    <h1 id="login-title">Log in</h1>
+    <p class="notice notice--error" data-login-message role="alert" hidden></p>
+    <form class="form" data-login-form novalidate>
+      <label class="field"><span>Username</span><input name="username" autocomplete="username" required maxlength="100" autocapitalize="none" spellcheck="false"></label>
+      <label class="field"><span>Password</span><input name="password" type="password" autocomplete="current-password" required maxlength="200"></label>
+      <button class="btn btn--primary" type="submit">Log in</button>
+    </form>
+  </section>
+
+  <!-- Media manager -->
+  <section data-view="app" hidden>
+    <section class="panel" aria-labelledby="upload-title">
+      <h1 id="upload-title">Upload photos</h1>
+      <form class="form upload" data-upload-form novalidate>
+        <div class="form__row">
+          <label class="field"><span>Where should the photos go?</span>
+            <select name="section" data-section-select required>
+              <option value="product">A product</option>
+              <option value="hero">Homepage hero (big top photo)</option>
+              <option value="banner">Healthy Snacks banner</option>
+              <option value="gallery">Inside the Store gallery</option>
+            </select>
+          </label>
+          <label class="field" data-product-field><span>Product</span>
+            <select name="productId" data-product-select required><option value="">Choose a product…</option></select>
+          </label>
+        </div>
+        <label class="field"><span>Description for visually impaired visitors and Google (alt text) — optional</span>
+          <input name="alt" maxlength="200" placeholder="e.g. Optimum Nutrition Gold Standard Whey on the store shelf">
+        </label>
+
+        <label class="drop" data-drop>
+          <input type="file" name="files" accept="image/jpeg,image/png,image/webp" multiple data-file-input>
+          <strong>Drag photos here, or tap to choose</strong>
+          <span data-limits>JPEG, PNG or WebP · up to 8 MB each</span>
+        </label>
+
+        <ul class="previews" data-previews aria-label="Photos ready to upload"></ul>
+
+        <div class="upload__actions">
+          <button class="btn btn--primary" type="submit" data-upload-button disabled>Upload</button>
+          <button class="btn btn--ghost" type="button" data-clear hidden>Clear</button>
+          <progress max="100" value="0" data-progress hidden></progress>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel" aria-labelledby="library-title">
+      <div class="panel__head">
+        <h1 id="library-title">Photos on the site</h1>
+        <label class="field field--inline"><span>Show</span>
+          <select data-filter>
+            <option value="all">Everything</option>
+            <option value="hero">Homepage hero</option>
+            <option value="banner">Healthy Snacks banner</option>
+            <option value="gallery">Gallery</option>
+            <option value="product">Products</option>
+          </select>
+        </label>
+      </div>
+      <p class="hint">The first photo in each group is the one shown on the site (for the gallery, all are shown in this order). Anything without an uploaded photo keeps its built-in photo.</p>
+      <div data-library></div>
+    </section>
+  </section>
+</main>
+
+<div class="toast" data-toast role="status" aria-live="polite" hidden></div>
+
+<dialog class="confirm" data-confirm aria-labelledby="confirm-title">
+  <h2 id="confirm-title">Delete this photo?</h2>
+  <p>It will be removed from the website straight away. This can't be undone.</p>
+  <img class="confirm__img" alt="" data-confirm-img>
+  <div class="confirm__actions">
+    <button class="btn btn--ghost" type="button" data-confirm-cancel>Cancel</button>
+    <button class="btn btn--danger" type="button" data-confirm-ok>Delete</button>
+  </div>
+</dialog>
+</body>
+</html>

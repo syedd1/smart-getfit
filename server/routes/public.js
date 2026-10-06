@@ -2,7 +2,8 @@
 import express from 'express';
 import { z } from 'zod';
 import { slug } from '../lib/validate.js';
-import { SECTIONS, UPLOAD_FILE } from '../services/media.js';
+import { SECTIONS } from '../services/media.js';
+import { FILE_NAME } from '../services/storage.js';
 import { HttpError } from '../middleware/errors.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { UPLOAD_CSP } from '../middleware/security.js';
@@ -84,7 +85,7 @@ export function createPublicRouter({ config, data, rendered, media, logger }) {
 
   // ── Uploaded images: served as files only, never as anything executable ─
   router.use('/uploads', (req, res, next) => {
-    if (!UPLOAD_FILE.test(req.path)) return next(new HttpError(404, 'not_found', 'Not found.'));
+    if (!FILE_NAME.test(req.path.slice(1))) return next(new HttpError(404, 'not_found', 'Not found.'));
     res.set({ 'Content-Security-Policy': UPLOAD_CSP, 'Cache-Control': 'public, max-age=31536000, immutable' });
     return next();
   }, express.static(config.uploadDir, { index: false, redirect: false, dotfiles: 'deny', fallthrough: true }));

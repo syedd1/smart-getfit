@@ -82,7 +82,6 @@ export function loadData({ dataDir, publicDir }) {
       number: String(i + 1).padStart(2, '0'),
       url: `/products/${c.id}`,
       products: items,
-      image: c.image || items[0]?.image || null,
     };
   });
 

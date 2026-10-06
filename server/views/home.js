@@ -1,10 +1,9 @@
 // Homepage (design boards 1b desktop + 1c mobile).
 import { html, jsonScript } from '../lib/html.js';
 import { page } from './layout.js';
-import { icon, img, external, featuredCard, catalogueCard, snackCard, productSheet } from './parts.js';
+import { icon, img, external, featuredCard, catalogueCard, snackCard, productSheet, productImage, staticImage, preloadImage, SIZES } from './parts.js';
 
-// Built-in store photos. In Phase 5 these become the fallback when the admin
-// has not uploaded hero / banner / gallery media.
+// Built-in store photos, used until the admin uploads hero / banner / gallery media.
 const DEFAULT_MEDIA = {
   hero: { src: '/assets/store/exterior.webp', alt: 'The Smart GetFit Nutrition storefront in Gulshan-e-Maymar, Karachi' },
   story: { src: '/assets/store/counter.webp', alt: 'Entrance of The Smart GetFit Nutrition store' },
@@ -46,13 +45,24 @@ function storeJsonLd(site) {
 export function homePage(ctx) {
   const { site, catalogue } = ctx;
   const { categories, products, featured, brands } = catalogue;
-  const media = DEFAULT_MEDIA;
   const snacks = catalogue.categoryById.get('healthy-snacks');
-  const allTileImage = categories.find((c) => c.products.length)?.image;
-  const pair = media.gallery.filter((g) => g.pairAlt).reverse();
+
+  // Uploaded media wins; the built-in photos fill any section left empty.
+  const uploaded = ctx.media;
+  const hero = uploaded.hero[0] ? { ...uploaded.hero[0], alt: uploaded.hero[0].alt || DEFAULT_MEDIA.hero.alt } : staticImage(ctx, DEFAULT_MEDIA.hero.src, DEFAULT_MEDIA.hero.alt);
+  const snacksBanner = uploaded.banner[0] || staticImage(ctx, DEFAULT_MEDIA.snacksBanner.src, DEFAULT_MEDIA.snacksBanner.alt);
+  const gallery = uploaded.gallery.length
+    ? [{ ...DEFAULT_MEDIA.gallery[0], image: staticImage(ctx, DEFAULT_MEDIA.gallery[0].src) }, ...uploaded.gallery.map((m) => ({ kind: 'image', image: m, label: m.alt || 'Inside the store' }))]
+    : DEFAULT_MEDIA.gallery.map((g) => ({ ...g, image: staticImage(ctx, g.src) }));
+  // On mobile the first two photos are shown as an overlapping pair above the rail.
+  const pairIndexes = gallery.map((g, i) => (g.kind === 'image' ? i : -1)).filter((i) => i >= 0).slice(0, 2);
+  const pair = pairIndexes.map((i) => gallery[i]).reverse();
+
+  // Category tile photo: an explicit category image, else its first product's photo.
+  const tileImage = (c) => (c.image ? staticImage(ctx, c.image) : c.products[0] ? productImage(ctx, c.products[0]) : null);
 
   const tile = (c) => html`<a class="ctile${c.all ? ' only-m' : ''}" href="${c.url}" data-filter="${c.id}"${c.all ? html` aria-current="true"` : ''}>
-<span class="ctile__img">${c.image ? img(ctx, c.image, '') : ''}</span>
+<span class="ctile__img">${tileImage(c) ? img(ctx, tileImage(c), '', { sizes: SIZES.tile }) : ''}</span>
 <span class="ctile__label"><span class="ctile__num">${c.number}</span><span class="ctile__name">${c.name}<span class="ctile__arrow" aria-hidden="true">→</span></span></span>
 </a>`;
 
@@ -60,11 +70,11 @@ export function homePage(ctx) {
   const chip = (c) => html`<button class="chip${c.all || c.products.length ? '' : ' only-d'}" type="button" aria-pressed="${c.all ? 'true' : 'false'}" data-filter="${c.id}" data-label="${c.name}">${c.all ? 'All'
     : c.shortName ? html`<span class="only-m">${c.shortName}</span><span class="only-d">${c.name}</span>` : c.name}</button>`;
 
-  const allCategory = { all: true, id: 'all', name: 'All products', number: '00', url: '/products', image: allTileImage, products };
+  const allCategory = { all: true, id: 'all', name: 'All products', number: '00', url: '/products', products: categories.find((c) => c.products.length)?.products ?? [] };
 
-  const galleryItem = (g, i) => html`<figure class="gitem${g.pairAlt ? ' gitem--paired' : ''}" data-kind="${g.kind}" data-label="${g.label}" data-full="${g.src}"${g.video ? html` data-video="${g.video}"` : ''}>
-${img(ctx, g.src, g.kind === 'video' ? '' : `${g.label} at ${site.name}, ${site.address.area}`, { cls: 'gitem__img' })}
-${g.kind === 'video' ? html`<video class="gitem__video" muted loop playsinline preload="none" poster="${g.src}" data-src="${g.video}" aria-label="Video tour of ${site.name}"></video>` : ''}
+  const galleryItem = (g, i) => html`<figure class="gitem${pairIndexes.includes(i) ? ' gitem--paired' : ''}" data-kind="${g.kind}" data-label="${g.label}" data-full="${g.image.full}"${g.video ? html` data-video="${g.video}"` : ''}>
+${img(ctx, g.image, g.kind === 'video' ? '' : `${g.label} at ${site.name}, ${site.address.area}`, { cls: 'gitem__img', sizes: SIZES.gallery })}
+${g.kind === 'video' ? html`<video class="gitem__video" muted loop playsinline preload="none" poster="${g.image.src}" data-src="${g.video}" aria-label="Video tour of ${site.name}"></video>` : ''}
 <figcaption>${g.label}</figcaption>
 <button class="gitem__open" type="button" aria-label="Open ${g.label}" data-lb="${i}">${icon('expand', 'i--12')}</button>
 </figure>`;
@@ -84,9 +94,9 @@ ${g.kind === 'video' ? html`<video class="gitem__video" muted loop playsinline p
 </div>
 </div>
 <div class="hero__media">
-<div class="hero__photo" data-parallax>${img(ctx, media.hero.src, media.hero.alt, { lazy: false, priority: true })}</div>
+<div class="hero__photo" data-parallax>${img(ctx, hero, null, { lazy: false, priority: true, sizes: SIZES.hero })}</div>
 <div class="hero__shade only-m"></div>
-<div class="hero__thumbs">${featured.slice(0, 3).map((p) => html`<div>${img(ctx, p.image, p.alt)}</div>`)}</div>
+<div class="hero__thumbs">${featured.slice(0, 3).map((p) => html`<div>${img(ctx, productImage(ctx, p), null, { sizes: SIZES.heroThumb })}</div>`)}</div>
 </div>
 </section>
 
@@ -139,11 +149,11 @@ ${products.map((p, i) => catalogueCard(ctx, p, i))}
 <div class="gtabs only-d" role="group" aria-label="Filter gallery"><button class="chip" type="button" aria-pressed="true" data-gtab="all">All</button><button class="chip" type="button" aria-pressed="false" data-gtab="image">Photos</button><button class="chip" type="button" aria-pressed="false" data-gtab="video">Videos</button></div>
 </div>
 <div class="gallery__pair only-m">
-${pair.map((g) => html`<figure data-reveal>${img(ctx, g.src, g.pairAlt)}</figure>`)}
+${pair.map((g) => html`<figure data-reveal>${img(ctx, g.image, g.pairAlt || g.label, { sizes: '80vw' })}</figure>`)}
 <span class="gallery__note">Real photos from our store</span>
 </div>
 <div class="gallery__grid rail" data-gallery>
-${media.gallery.map(galleryItem)}
+${gallery.map(galleryItem)}
 </div>
 <dialog class="lightbox" aria-label="Gallery" data-lightbox>
 <div class="lightbox__bar"><span class="lightbox__title"><span class="lightbox__kind" data-lb-kind>Photo</span> <span data-lb-label></span></span>
@@ -154,7 +164,7 @@ ${media.gallery.map(galleryItem)}
 
 ${snacks && snacks.products.length ? html`<section class="snacks only-m" aria-labelledby="snacks-title">
 <div class="snacks__hero">
-<div class="snacks__photo" data-parallax>${img(ctx, media.snacksBanner.src, media.snacksBanner.alt)}</div>
+<div class="snacks__photo" data-parallax>${img(ctx, snacksBanner, null, { sizes: '100vw' })}</div>
 <div class="snacks__shade"></div>
 <div class="snacks__title" data-reveal><span class="eyebrow">Category ${snacks.number}</span><h2 class="h2" id="snacks-title">${snacks.name.split(' ').map((w, i) => (i ? html`<br>${w}` : w))}</h2></div>
 </div>
@@ -176,7 +186,7 @@ ${cantFind(ctx)}
 <p class="story__quote">Since 2015, we've grown from home deliveries into Karachi's trusted supplement store, with a shop in Gulshan-e-Maymar and our own warehouse for bulk orders. Original products, honest advice, delivered across Karachi.</p>
 <a class="btn btn-secondary btn-cta only-m" ${external(site.wa.wholesale)}>Ask About Wholesale</a>
 </div>
-<div class="story__media" data-reveal>${img(ctx, media.story.src, media.story.alt)}</div>
+<div class="story__media" data-reveal>${img(ctx, DEFAULT_MEDIA.story.src, DEFAULT_MEDIA.story.alt)}</div>
 </section>
 
 <section class="about only-d" id="about" aria-labelledby="about-title">
@@ -185,7 +195,7 @@ ${cantFind(ctx)}
 <p>Smart GetFit Nutrition provides sports nutrition, supplements, fitness beverages, snacks, coffee and related products to customers in Karachi.</p>
 <p>Since 2015 we have supplied sports nutrition at wholesale as well as retail, so bulk orders come from the same shelves our walk-in customers shop.</p>
 </div>
-<div class="about__media">${img(ctx, media.about.src, media.about.alt)}<img class="about__logo" src="/assets/logo-sm.webp" width="480" height="480" alt="${site.name} logo" loading="lazy"></div>
+<div class="about__media">${img(ctx, DEFAULT_MEDIA.about.src, DEFAULT_MEDIA.about.alt)}<img class="about__logo" src="/assets/logo-sm.webp" width="480" height="480" alt="${site.name} logo" loading="lazy"></div>
 <div class="band">
 <div class="band__cell band__cell--accent">${icon('box', 'i--34')}<h3>Wholesale</h3><span class="band__big">Since ${site.foundingYear}</span><span>Wholesale and retail from one store in ${site.address.area}</span></div>
 <div class="band__cell"><h3>Warehouse</h3><span>Our own warehouse for bulk orders, delivered across ${site.address.city}.</span></div>
@@ -229,16 +239,16 @@ ${site.reviews.items.map((r) => html`<article class="review"><span class="stars"
     title: `${site.name} | Sports Nutrition & Supplements in ${site.address.area}, ${site.address.city}`,
     description: `Sports nutrition and supplement store in ${site.address.area}, ${site.address.city} since ${site.foundingYear}. Protein, pre-workout, BCAAs, multivitamins, shakes, snacks and coffee. Retail and wholesale. Ask for prices on WhatsApp.`,
     current: 'home',
-    head: html`<link rel="preload" href="${media.hero.src}" as="image" fetchpriority="high">
+    head: html`${preloadImage(hero, SIZES.hero)}
 <meta property="og:type" content="website">
 <meta property="og:title" content="${site.name} — ${site.address.area}, ${site.address.city}">
 <meta property="og:description" content="Sports nutrition and supplements since ${site.foundingYear}. Retail and wholesale. Visit the store or ask on WhatsApp.">
-<meta property="og:image" content="${media.hero.src}">
+<meta property="og:image" content="${hero.src}">
 <meta property="og:locale" content="en_PK">
 <script type="application/ld+json">${jsonScript(storeJsonLd(site))}</script>`,
     scripts: ['catalogue', 'gallery'],
     main,
-    afterPage: productSheet(products),
+    afterPage: productSheet(ctx, products),
   });
 }
 

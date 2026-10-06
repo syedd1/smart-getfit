@@ -128,6 +128,14 @@ test('production refuses to start with missing or weak secrets', () => {
   }
 });
 
+test('empty lines copied from .env.example fall back to defaults', () => {
+  const config = loadConfig({ ...PRODUCTION_ENV, LOG_LEVEL: '', HOST: '', PORT: ' ', UPLOAD_MAX_MB: '' });
+  assert.equal(config.logLevel, 'info');
+  assert.equal(config.host, '127.0.0.1');
+  assert.equal(config.port, 3000);
+  assert.equal(config.uploadMaxBytes, 8 * 1024 * 1024);
+});
+
 test('the logger redacts secrets', () => {
   const lines = [];
   const logger = createLogger({ level: 'debug', write: (l, line) => lines.push(line) });
@@ -153,4 +161,32 @@ test('trailing-slash URLs redirect to the canonical page', async () => {
   const res = await app.get('/products/pre-workout/');
   assert.equal(res.status, 301);
   assert.equal(res.headers.get('location'), '/products/pre-workout');
+});
+
+test('admin page: served under ADMIN_PATH, never indexed or cached, previews allowed', async () => {
+  const custom = await startApp({ ADMIN_PATH: '/manage-7f3a' });
+  try {
+    const bare = await custom.get('/manage-7f3a?x=1');
+    assert.equal(bare.status, 301);
+    assert.equal(bare.headers.get('location'), '/manage-7f3a/?x=1');
+
+    const page = await custom.get('/manage-7f3a/');
+    assert.equal(page.status, 200);
+    assert.match(page.headers.get('content-type'), /text\/html/);
+    assert.equal(page.headers.get('x-robots-tag'), 'noindex, nofollow');
+    assert.equal(page.headers.get('cache-control'), 'no-store');
+    assert.match(page.headers.get('content-security-policy'), /img-src 'self' blob:/);
+    assert.doesNotMatch(page.headers.get('content-security-policy'), /unsafe-inline/);
+    const html = await page.text();
+    assert.doesNotMatch(html, /<script>|onclick=|style="/, 'no inline script, handlers or styles');
+
+    assert.equal((await custom.get('/manage-7f3a/admin.js')).status, 200);
+    assert.equal((await custom.get('/manage-7f3a/../server/config.js')).status, 404);
+    assert.equal((await custom.get('/admin/')).status, 404, 'the default path is not served when ADMIN_PATH is changed');
+
+    const site = await custom.get('/');
+    assert.doesNotMatch(site.headers.get('content-security-policy'), /blob:/, 'blob: is only allowed on the admin page');
+  } finally {
+    await custom.close();
+  }
 });

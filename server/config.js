@@ -18,6 +18,7 @@ const schema = z.object({
   TRUST_PROXY: z.string().default('false'),
   DATABASE_PATH: z.string().min(1).default('var/smart-getfit.db'),
   UPLOAD_DIR: z.string().min(1).default('uploads'),
+  UPLOAD_MAX_MB: z.coerce.number().min(1).max(25).default(8),
   ADMIN_PATH: z.string().regex(/^\/[a-z0-9][a-z0-9-]{2,63}$/, 'must look like /admin or /manage-7f3a').default('/admin'),
   ADMIN_USERNAME: optionalText,
   ADMIN_PASSWORD_HASH: optionalText,
@@ -42,7 +43,9 @@ function parseTrustProxy(value) {
 }
 
 export function loadConfig(env = process.env) {
-  const parsed = schema.safeParse(env);
+  // An empty line in .env (e.g. "LOG_LEVEL=") means "not set": use the default.
+  const set = Object.fromEntries(Object.entries(env).filter(([, v]) => v !== undefined && v.trim() !== ''));
+  const parsed = schema.safeParse(set);
   if (!parsed.success) throw new ConfigError(formatIssues(parsed.error));
   const c = parsed.data;
   const production = c.NODE_ENV === 'production';
@@ -54,7 +57,7 @@ export function loadConfig(env = process.env) {
     if (!c.ADMIN_PASSWORD_HASH) problems.push('ADMIN_PASSWORD_HASH is required (generate it with: npm run hash-password)');
     else if (!c.ADMIN_PASSWORD_HASH.startsWith('$argon2id$')) problems.push('ADMIN_PASSWORD_HASH must be an Argon2id hash (starts with $argon2id$)');
   }
-  if (production || c.SESSION_SECRET) {
+  if (production || adminConfigured || c.SESSION_SECRET) {
     if (!c.SESSION_SECRET) problems.push('SESSION_SECRET is required');
     else if (c.SESSION_SECRET.length < 32) problems.push('SESSION_SECRET must be at least 32 characters (generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))")');
     else if (PLACEHOLDER.test(c.SESSION_SECRET) || new Set(c.SESSION_SECRET).size < 10) problems.push('SESSION_SECRET looks like a placeholder; use a random value');
@@ -72,6 +75,7 @@ export function loadConfig(env = process.env) {
     trustProxy: parseTrustProxy(c.TRUST_PROXY),
     databasePath: c.DATABASE_PATH === ':memory:' ? ':memory:' : resolve(c.DATABASE_PATH),
     uploadDir: resolve(c.UPLOAD_DIR),
+    uploadMaxBytes: Math.round(c.UPLOAD_MAX_MB * 1024 * 1024),
     dataDir: path.join(ROOT, 'data'),
     publicDir: path.join(ROOT, 'public'),
     adminPath: c.ADMIN_PATH,

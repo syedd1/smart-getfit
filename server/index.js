@@ -1,20 +1,36 @@
 // The Smart GetFit Nutrition — single Node process serving the site, API and uploads.
-//   createApp() builds the Express app from already-loaded dependencies (used by tests).
+//   createApp() builds the Express app from already-loaded config, data and database (used by tests).
 //   start() loads config, data and the database, refusing to start if any is invalid.
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import fs from 'node:fs';
 import express from 'express';
-import { loadConfig, ConfigError } from './config.js';
+import { loadConfig, ConfigError, ROOT } from './config.js';
 import { createLogger } from './lib/logger.js';
 import { openDatabase, runMigrations } from './db/db.js';
 import { loadData, DataError } from './services/catalogue.js';
 import { createMediaService } from './services/media.js';
+import { createLocalStorage } from './services/storage.js';
 import { renderSite } from './views/index.js';
-import { securityHeaders } from './middleware/security.js';
+import { securityHeaders, contentSecurityPolicy } from './middleware/security.js';
 import { notFound, errorHandler } from './middleware/errors.js';
+import { createAuth } from './middleware/auth.js';
+import { createCsrf } from './middleware/csrf.js';
 import { createPublicRouter } from './routes/public.js';
+import { createAdminRouter } from './routes/admin.js';
 
-export function createApp({ config, logger, db, data, rendered }) {
+export function createApp({ config, logger, db, data }) {
+  const storage = createLocalStorage({ dir: config.uploadDir });
+
+  // Pages are rendered in memory; any media change re-renders them (takes ~50 ms).
+  const rendered = {};
+  let media;
+  const render = () => Object.assign(rendered, renderSite(data, { publicDir: config.publicDir, media: media.grouped() }));
+  media = createMediaService({ db, storage, catalogue: data.catalogue, logger, onChange: render });
+  render();
+
+  const auth = createAuth({ db, config });
+  const csrf = createCsrf({ secret: config.sessionSecret || 'admin-disabled' });
+
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy);
@@ -33,14 +49,27 @@ export function createApp({ config, logger, db, data, rendered }) {
     }
   });
 
-  app.use(createPublicRouter({ config, data, rendered, media: createMediaService({ db }), logger }));
+  app.use('/api/admin', createAdminRouter({ config, logger, auth, csrf, media }));
+
+  // Admin screen: static files from admin/. It holds no secrets — everything it
+  // shows comes from the authenticated API. Never indexed, never cached.
+  const adminCsp = contentSecurityPolicy(config, { extraImgSrc: 'blob:' });
+  app.use(config.adminPath, (req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    const [pathname, query = ''] = req.originalUrl.split('?');
+    if (pathname === config.adminPath) return res.redirect(301, `${config.adminPath}/${query ? `?${query}` : ''}`);
+    res.set({ 'Content-Security-Policy': adminCsp, 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' });
+    return next();
+  }, express.static(path.join(ROOT, 'admin'), { index: 'index.html', redirect: false, dotfiles: 'ignore' }));
+  app.use(createPublicRouter({ config, data, rendered, media, logger }));
 
   app.use(notFound);
   app.use(errorHandler({ logger, pages: rendered }));
-  return app;
+
+  return { app, auth, storage, media };
 }
 
-export function start() {
+export async function start() {
   let config;
   try {
     config = loadConfig();
@@ -52,12 +81,9 @@ export function start() {
   const logger = createLogger({ level: config.logLevel });
 
   let data;
-  let rendered;
   let db;
   try {
     data = loadData({ dataDir: config.dataDir, publicDir: config.publicDir });
-    rendered = renderSite(data, { publicDir: config.publicDir });
-    fs.mkdirSync(config.uploadDir, { recursive: true });
     db = openDatabase(config.databasePath);
     const applied = runMigrations(db);
     if (applied.length) logger.info('migrations applied', { migrations: applied });
@@ -66,11 +92,18 @@ export function start() {
     process.exit(1);
   }
 
-  const app = createApp({ config, logger, db, data, rendered });
+  const { app, auth, storage } = createApp({ config, logger, db, data });
+  const removed = await storage.cleanupPartials();
+  if (removed) logger.warn('removed partial upload files left by an earlier crash', { count: removed });
+  if (!config.admin) logger.warn('admin panel disabled: set ADMIN_USERNAME, ADMIN_PASSWORD_HASH and SESSION_SECRET to enable it');
+
+  const sweep = setInterval(() => auth.removeStaleSessions(), 60 * 60_000);
+  sweep.unref();
+
   const server = app.listen(config.port, config.host, () => {
     logger.info('server started', {
       url: `http://${config.host}:${config.port}`, env: config.env,
-      pages: rendered.pages.size, products: data.catalogue.products.length,
+      products: data.catalogue.products.length, admin: config.admin ? config.adminPath : 'disabled',
     });
   });
   server.on('error', (err) => {

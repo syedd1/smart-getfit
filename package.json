@@ -11,11 +11,15 @@
     "start": "node --env-file-if-exists=.env server/index.js",
     "dev": "node --watch --env-file-if-exists=.env server/index.js",
     "migrate": "node --env-file-if-exists=.env scripts/migrate.js",
+    "hash-password": "node scripts/hash-password.js",
     "test": "node --test \"tests/**/*.test.js\""
   },
   "dependencies": {
+    "argon2": "^0.45.1",
     "better-sqlite3": "^13.0.3",
     "express": "^5.2.1",
+    "multer": "^2.4.0",
+    "sharp": "^0.35.5",
     "zod": "^4.6.5"
   }
 }

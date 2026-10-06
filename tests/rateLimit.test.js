@@ -1,11 +1,12 @@
-// Rate limiter: unit behaviour plus the public API limit end-to-end.
+// Rate limiter: unit behaviour, plus the public, admin and upload limits end-to-end.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import { rateLimit, MemoryStore } from '../server/middleware/rateLimit.js';
 import { errorHandler } from '../server/middleware/errors.js';
 import { createLogger } from '../server/lib/logger.js';
-import { startApp } from './helpers.js';
+import sharp from 'sharp';
+import { startApp, adminEnvironment, login } from './helpers.js';
 
 const silent = createLogger({ level: 'silent' });
 
@@ -95,6 +96,45 @@ test('public API allows 120 requests per minute per IP', async () => {
     assert.equal(statuses[120], 429);
     assert.equal((await app.get('/')).status, 200, 'pages are not rate limited');
     assert.ok(app.logs.some((l) => l.msg === 'rate limit exceeded'));
+  } finally {
+    await app.close();
+  }
+});
+
+test('admin API allows 60 requests per minute per IP', async () => {
+  const app = await startApp(await adminEnvironment());
+  try {
+    const { send } = await login(app); // login is request 1
+    const statuses = [];
+    for (let i = 0; i < 60; i += 1) statuses.push((await send('GET', '/api/admin/session')).status);
+    assert.ok(statuses.slice(0, 59).every((s) => s === 200));
+    assert.equal(statuses[59], 429);
+  } finally {
+    await app.close();
+  }
+});
+
+test('uploads are capped at 30 files per hour, counted per file', async () => {
+  const app = await startApp(await adminEnvironment());
+  const tiny = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#fff' } }).png().toBuffer();
+  const send = async (session, count) => {
+    const form = new FormData();
+    form.append('section', 'gallery');
+    for (let i = 0; i < count; i += 1) form.append('files', new Blob([tiny], { type: 'image/png' }), `${i}.png`);
+    return session.send('POST', '/api/admin/media', { body: form });
+  };
+  const rows = () => app.db.prepare('SELECT COUNT(*) FROM media').pluck().get();
+  try {
+    const session = await login(app);
+    for (let i = 0; i < 2; i += 1) assert.equal((await send(session, 10)).status, 201);
+    assert.equal((await send(session, 6)).status, 201); // 26 used
+    const over = await send(session, 10);
+    assert.equal(over.status, 429, 'a batch that does not fit is refused whole');
+    assert.ok(Number(over.headers.get('retry-after')) > 0);
+    assert.equal(rows(), 26, 'nothing from the refused batch was processed');
+    assert.equal((await send(session, 4)).status, 201); // exactly 30
+    assert.equal((await send(session, 1)).status, 429, 'refused before the body is even read');
+    assert.ok(app.logs.some((l) => l.msg === 'upload limit reached'));
   } finally {
     await app.close();
   }

@@ -104,6 +104,37 @@ export const siteSchema = z.strictObject({
   }),
 });
 
+// ── Admin API input ───────────────────────────────────────────────────────
+const section = z.enum(['product', 'hero', 'banner', 'gallery']);
+const alt = z.string().trim().max(200, 'Alt text can be at most 200 characters');
+const emptyToUndefined = (v) => (v === '' || v === null ? undefined : v);
+
+export const loginSchema = z.strictObject({
+  username: z.string().min(1).max(100),
+  password: z.string().min(1).max(200),
+});
+
+// Multipart form fields arrive as strings; an empty productId means "none".
+export const uploadFieldsSchema = z.object({
+  section,
+  productId: z.preprocess(emptyToUndefined, slug.optional()),
+  alt: alt.default(''),
+});
+
+export const mediaUpdateSchema = z.strictObject({
+  section: section.optional(),
+  productId: slug.nullable().optional(),
+  alt: alt.optional(),
+}).refine((v) => Object.keys(v).length > 0, 'Nothing to update');
+
+export const reorderSchema = z.strictObject({
+  section,
+  productId: slug.nullable().optional(),
+  ids: z.array(z.number().int().positive()).min(1).max(500),
+});
+
+export const mediaId = z.string().regex(/^[1-9]\d{0,9}$/).transform(Number);
+
 // "products[3].category: unknown category "wey"" — one line per issue, for startup logs.
 export function formatIssues(error) {
   return error.issues.map((i) => {

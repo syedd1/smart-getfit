@@ -1,12 +1,13 @@
 // Security headers for every response. The CSP allows no inline script or style;
 // the only third party is the Google Maps embed on the Visit section.
 
-export function contentSecurityPolicy({ isProduction }) {
+// extraImgSrc: the admin page also shows local previews of chosen files (blob: URLs).
+export function contentSecurityPolicy({ isProduction }, { extraImgSrc = '' } = {}) {
   return [
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self'",
-    "img-src 'self'",
+    `img-src 'self'${extraImgSrc ? ` ${extraImgSrc}` : ''}`,
     "font-src 'self'",
     "media-src 'self'",
     "connect-src 'self'",

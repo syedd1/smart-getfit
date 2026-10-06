@@ -31,13 +31,13 @@ export function errorHandler({ logger, pages }) {
 
     let code;
     let message;
-    if (err instanceof HttpError && status < 500) {
-      ({ code, message } = err);
+    if (err instanceof HttpError) {
+      ({ code, message } = err); // raised on purpose with a client-safe message
     } else {
       [code, message] = GENERIC[status] || (status < 500 ? GENERIC[400] : GENERIC[500]);
     }
 
-    if (status >= 500) {
+    if (status >= 500 && !(err instanceof HttpError)) {
       logger.error('request failed', { status, method: req.method, path: req.originalUrl, err });
     } else if (status !== 404) {
       logger.debug('request rejected', { status, code, method: req.method, path: req.originalUrl });
