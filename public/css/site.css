@@ -532,6 +532,40 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   .empty a { align-self: auto; }
 }
 
+/* Listing pages (/products, /products/<category>): grid instead of slider */
+.chip { display: inline-flex; align-items: center; }
+.chip[aria-current="page"] { border-color: var(--color-accent); background: var(--color-accent); color: #fff; }
+.catalogue__count { flex: none; font-size: 12px; font-weight: 600; color: var(--color-neutral-700); }
+.chips--nav { padding-bottom: 4px; }
+.catalogue__track--grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+  padding: 6px 16px 4px; overflow: visible;
+}
+.catalogue__track--grid .pcard { width: auto; }
+.catalogue__track--grid .pcard__media { height: auto; aspect-ratio: 1 / 1; }
+.catalogue__track--grid .pcard__num { font-size: 88px; }
+.catalogue__track--grid .pcard__body { padding: 10px; }
+.catalogue__track--grid .pcard__name { font-size: 15px; }
+.catalogue__track--grid .pcard__actions { grid-template-columns: minmax(0, 1fr) 40px; }
+.catalogue__track--grid .pcard__actions .btn-ask { padding: 0 8px; font-size: 10px; letter-spacing: .04em; justify-content: center; }
+@media (max-width: 1023px) { .catalogue__track--grid .btn-ask > [aria-hidden] { display: none; } }
+.catalogue__track--grid .pcard__more { width: 40px; }
+.price { margin-top: 6px; font-size: 15px; font-weight: 800; color: var(--color-text); }
+.specs dd a { border-bottom: var(--rule); }
+.specs dd a:hover { color: var(--color-accent); }
+@media (min-width: 1024px) {
+  .catalogue__count { font-size: 14px; }
+  .chips--nav { padding-bottom: 0; }
+  .catalogue__track--grid {
+    grid-auto-flow: row; grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px; padding: 0;
+  }
+  .catalogue__track--grid .pcard__body { padding: 20px; }
+  .catalogue__track--grid .pcard__name { font-size: 20px; }
+  .catalogue__track--grid .pcard__actions .btn-ask { padding: 0 14px; font-size: 12px; letter-spacing: .08em; }
+  .catalogue__track--grid .pcard__more { width: auto; }
+}
+
 /* ── Gallery ──────────────────────────────────────────────────────────── */
 .gallery { padding: 40px 0 28px; display: flex; flex-direction: column; gap: 18px; }
 .gallery .h2 { padding: 0 16px; }

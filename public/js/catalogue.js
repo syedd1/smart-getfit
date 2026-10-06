@@ -15,7 +15,7 @@
   const empty = document.querySelector('[data-empty]');
   const mobileLayout = window.matchMedia('(max-width: 1023px)');
 
-  const labelFor = (slug) => chips.find((c) => c.dataset.filter === slug)?.textContent.trim() || slug;
+  const labelFor = (id) => chips.find((c) => c.dataset.filter === id)?.dataset.label || id;
   const state = { cat: 'all', brand: '' };
 
   function apply() {
@@ -54,9 +54,18 @@
 
   for (const chip of chips) chip.addEventListener('click', () => setCategory(chip.dataset.filter, false));
 
-  // Category tiles and "Explore Snacks" are links to #products: filter, then let the link scroll.
-  for (const link of document.querySelectorAll('a[data-filter]')) {
-    link.addEventListener('click', () => setCategory(link.dataset.filter, true));
+  // Category tiles and "Explore Snacks" link to the category pages (crawlable, and they
+  // work without JS). On the homepage they filter the catalogue in place instead.
+  const productsSection = document.getElementById('products');
+  if (chips.length && productsSection) {
+    for (const link of document.querySelectorAll('a[data-filter]')) {
+      link.addEventListener('click', (e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+        e.preventDefault();
+        setCategory(link.dataset.filter, true);
+        productsSection.scrollIntoView({ block: 'start' });
+      });
+    }
   }
 
   brandSelect?.addEventListener('change', () => { state.brand = brandSelect.value; apply(); });
@@ -81,6 +90,9 @@
     field('availLabel').textContent = p.avail ? 'In stock at the store' : 'Currently Unavailable';
     field('avail').classList.toggle('avail--no', !p.avail);
     field('desc').textContent = p.desc;
+    field('price').textContent = p.price || '';
+    field('price').hidden = !p.price;
+    field('cta').textContent = p.cta;
     field('wa').href = p.wa;
     field('waAbout').href = p.waAbout;
     dialog.showModal();

@@ -1,0 +1,59 @@
+{
+  "name": "The Smart GetFit Nutrition",
+  "foundingYear": 2015,
+  "phone": {
+    "display": "0337 2106695",
+    "international": "+923372106695"
+  },
+  "whatsapp": {
+    "display": "0337 2106695",
+    "number": "923372106695"
+  },
+  "address": {
+    "street": "Plot C15, Sector Z-3, Sector Z",
+    "area": "Gulshan-e-Maymar",
+    "city": "Karachi",
+    "region": "Sindh",
+    "country": "PK",
+    "display": "Plot C15, Sector Z-3 Sector Z Gulshan-e-Maymar, Karachi"
+  },
+  "geo": { "lat": 25.016606579430178, "lng": 67.12167678465528 },
+  "hours": {
+    "display": "5 PM – 12 AM, Monday to Saturday",
+    "schedule": [
+      {
+        "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+        "opens": "17:00",
+        "closes": "00:00"
+      }
+    ]
+  },
+  "maps": {
+    "url": "https://maps.app.goo.gl/jom8hF1y4CfwPLLk7",
+    "embedUrl": "https://maps.google.com/maps?q=25.016606579430178,67.12167678465528&z=17&output=embed"
+  },
+  "social": {
+    "instagram": "https://www.instagram.com/thesmartgetfit_nutrition/",
+    "facebook": "https://www.facebook.com/people/Getfitnutrition/61586426474000/"
+  },
+  "deliveryAreas": ["Ahsanabad", "Taiser Town", "Surjani Town", "North Karachi", "Scheme 33", "All Karachi"],
+  "marquee": ["FAST DELIVERY", "100% AUTHENTIC", "NEED HELP? 0337 2106695"],
+  "whatsappMessages": {
+    "general": "Hi Smart GetFit Nutrition, I have a question.",
+    "missingProduct": "Hi Smart GetFit, I'm looking for a product that isn't on the website. Do you have it?",
+    "wholesale": "Hi Smart GetFit, I would like to ask about wholesale supply.",
+    "productPrice": "Hi Smart GetFit, what is the price of {product}?",
+    "productAvailability": "Hi Smart GetFit, is {product} available?",
+    "productAbout": "Hi Smart GetFit, I'd like to ask about {product}."
+  },
+  "reviews": {
+    "rating": 5,
+    "count": 3,
+    "url": "https://maps.app.goo.gl/jom8hF1y4CfwPLLk7",
+    "items": [
+      { "name": "Moazzam Azeem", "text": "The best shop for the Fitness products in town 😍 Highly recommended !!" },
+      { "name": "Mohammad Shahbaz", "text": "The best one stop solution for all fitness freaks in Town. 10/10" },
+      { "name": "Shah Fahad", "text": "Exceptional service" }
+    ]
+  }
+}
