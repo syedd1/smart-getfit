@@ -77,6 +77,7 @@ admin panel ─▶ /api/admin (login, CSRF) ─▶ check & resize photo ─▶ u
 | `var/` | The SQLite database file (not in Git). |
 | `scripts/` | Helper commands (password, backups, image copies, migrations). |
 | `tests/` | Automated tests (`npm test`). |
+| `.npmrc` | Makes `npm install` use the native packages' ready-made binaries (no C++ compiler needed) and skips dependencies' install scripts. Keep it. |
 
 Pages are built from the data files **once at startup** and kept in memory, so the site is fast and a typo can never half-break a page: if `products.json` or `site.json` is invalid, **the server refuses to start** and prints exactly what is wrong.
 
@@ -376,7 +377,7 @@ npm outdated
 | Replaced a built-in photo but the old one shows | Restart the server (version stamps are computed at startup), then run `npm run optimize-images`. |
 | Upload rejected | The message says why: not a real JPEG/PNG/WebP, over the size limit, over 40 megapixels, or the hourly limit. |
 | Site not showing in Google during testing | Outside `NODE_ENV=production`, `robots.txt` blocks search engines on purpose. |
-| `npm install` fails building `sharp`, `argon2` or `better-sqlite3` | Use Node 22.9+ on a 64-bit system; delete `node_modules` and run `npm ci` again. |
+| `npm install` fails with `gyp ERR!` / "find VS" while building `better-sqlite3` | npm is trying to compile instead of using the bundled binaries. Make sure the project's `.npmrc` (with `ignore-scripts=true`) is present, use Node 22.9+ on 64-bit Windows/Linux/macOS, delete `node_modules` and run `npm ci` again. |
 | Want to test on a phone | Set `HOST=0.0.0.0` in `.env`, restart, and open `http://YOUR-PC-IP:3000` on the phone (same Wi-Fi). Set it back afterwards. |
 
 Logs are JSON lines on the console (or wherever your process manager stores them). Look for `"level":"error"` or `"level":"warn"`.
