@@ -18,7 +18,7 @@ const sectionParam = z.enum(SECTIONS);
 // Only what the public site needs from the data files.
 const publicProduct = (p) => ({
   id: p.id, brand: p.brand, name: p.name, category: p.category, categoryName: p.categoryName,
-  size: p.size, flavour: p.flavour ?? null, description: p.description, image: p.image,
+  size: p.size, flavour: p.flavour ?? null, description: p.description, image: p.image ?? null, // admin-added products have only uploaded photos
   price: p.price ?? null, available: p.available, featured: p.featured, url: p.url,
   whatsappUrl: p.available ? (p.price ? p.waAbout : p.waPrice) : p.waAvailability,
 });
@@ -49,13 +49,21 @@ export function createPublicRouter({ config, data, rendered, media, logger }) {
   }));
   api.use((req, res, next) => { res.set('Cache-Control', 'public, max-age=60'); next(); });
 
-  const products = catalogue.products.map(publicProduct);
-  const productsById = new Map(products.map((p) => [p.id, p]));
+  // The catalogue changes when products are added in the admin panel (pages are then
+  // re-rendered): rebuild the API list once per render.
+  let apiProducts = null;
+  const currentProducts = () => {
+    if (apiProducts?.generation !== rendered.generation) {
+      const list = catalogue.products.map(publicProduct);
+      apiProducts = { generation: rendered.generation, list, byId: new Map(list.map((p) => [p.id, p])) };
+    }
+    return apiProducts;
+  };
   const siteInfo = publicSite(site);
 
-  api.get('/products', (req, res) => res.json({ products }));
+  api.get('/products', (req, res) => res.json({ products: currentProducts().list }));
   api.get('/products/:id', (req, res) => {
-    const product = productsById.get(parseParam(slug, req.params.id));
+    const product = currentProducts().byId.get(parseParam(slug, req.params.id));
     if (!product) throw new HttpError(404, 'not_found', 'No product with that id.');
     res.json({ product });
   });

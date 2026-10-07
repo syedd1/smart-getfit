@@ -619,6 +619,11 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   .gitem:nth-child(8n+6) { grid-column: 9 / 13; }
   .gitem:nth-child(8n+7) { grid-column: 1 / 5; }
   .gitem:nth-child(8n+8) { grid-column: 5 / 13; }
+  /* A last, incomplete group of 8 is laid out as even rows (classes set in home.js) */
+  .gallery__grid .gitem--w12 { grid-column: span 12; grid-row: span 1; }
+  .gallery__grid .gitem--w6 { grid-column: span 6; grid-row: span 1; }
+  .gallery__grid .gitem--w4 { grid-column: span 4; grid-row: span 1; }
+  .gallery__grid .gitem--w3 { grid-column: span 3; grid-row: span 1; }
   .gallery__grid.is-filtered .gitem { grid-column: span 4; grid-row: span 1; }
   .gtabs { display: flex; gap: 6px; }
   .gtabs .chip { height: 40px; padding: 0 16px; }

@@ -1,4 +1,4 @@
-// Admin API — media management only. Mounted at /api/admin.
+// Admin API — media and admin-added products. Mounted at /api/admin.
 // Every state-changing route: same-origin check → rate limit → session → CSRF token.
 import express from 'express';
 import multer from 'multer';
@@ -6,7 +6,7 @@ import { HttpError } from '../middleware/errors.js';
 import { rateLimit, quota } from '../middleware/rateLimit.js';
 import { requireAuth, SESSION_IDLE_MS } from '../middleware/auth.js';
 import { sameOrigin } from '../middleware/csrf.js';
-import { loginSchema, uploadFieldsSchema, mediaUpdateSchema, reorderSchema, mediaId } from '../lib/validate.js';
+import { loginSchema, uploadFieldsSchema, mediaUpdateSchema, reorderSchema, mediaId, slug, productCreateSchema, productUpdateSchema } from '../lib/validate.js';
 
 const MAX_FILES_PER_REQUEST = 10;
 export const UPLOADS_PER_HOUR = 30;
@@ -23,7 +23,7 @@ function parse(schema, value) {
 // Original file names are only echoed back in messages, never used for storage.
 const displayName = (name) => String(name || 'file').replace(/[^\w.\- ()]/g, '_').slice(0, 80);
 
-export function createAdminRouter({ config, logger, auth, csrf, media }) {
+export function createAdminRouter({ config, logger, auth, csrf, media, products }) {
   const router = express.Router();
   const json = express.json({ limit: '16kb' });
   const authed = requireAuth(auth);
@@ -143,6 +143,28 @@ export function createAdminRouter({ config, logger, auth, csrf, media }) {
     if (!req.file) throw new HttpError(400, 'no_files', 'Choose an image to upload.');
     uploadQuota.spend(req, res, 1);
     res.json({ media: await media.replace(id, req.file.buffer) });
+  });
+
+  // ── Products (added ones only; products.json products are read-only) ───
+  const productId = (value) => {
+    if (!slug.safeParse(value).success) throw new HttpError(404, 'not_found', 'That product no longer exists.');
+    return value;
+  };
+
+  router.get('/products', authed, (req, res) => res.json({ products: products.listAdmin(), categories: products.categories() }));
+
+  router.post('/products', authed, csrf.verify, json, (req, res) => {
+    res.status(201).json({ product: products.create(parse(productCreateSchema, req.body)) });
+  });
+
+  router.put('/products/:id', authed, csrf.verify, json, (req, res) => {
+    const id = productId(req.params.id);
+    res.json({ product: products.update(id, parse(productUpdateSchema, req.body)) });
+  });
+
+  router.delete('/products/:id', authed, csrf.verify, async (req, res) => {
+    await products.remove(productId(req.params.id));
+    res.status(204).end();
   });
 
   return router;

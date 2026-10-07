@@ -8,8 +8,9 @@ import express from 'express';
 import { loadConfig, ConfigError, ROOT } from './config.js';
 import { createLogger } from './lib/logger.js';
 import { openDatabase, runMigrations } from './db/db.js';
-import { loadData, DataError } from './services/catalogue.js';
+import { loadData, buildCatalogue, DataError } from './services/catalogue.js';
 import { createMediaService } from './services/media.js';
+import { createProductService } from './services/products.js';
 import { createLocalStorage } from './services/storage.js';
 import { renderSite } from './views/index.js';
 import { securityHeaders, contentSecurityPolicy } from './middleware/security.js';
@@ -22,23 +23,33 @@ import { createAdminRouter } from './routes/admin.js';
 export function createApp({ config, logger, db, data }) {
   const storage = createLocalStorage({ dir: config.uploadDir });
 
-  // Pages are rendered in memory; any media change re-renders them (takes ~50 ms).
+  // Pages are rendered in memory; any media or product change re-renders them (takes ~50 ms).
   const rendered = { generation: 0 };
   let media;
+  let products;
   const dataChanged = ['products.json', 'site.json']
     .map((f) => fs.statSync(path.join(config.dataDir, f)).mtime)
     .reduce((a, b) => (a > b ? a : b));
-  const render = () => Object.assign(rendered, renderSite(data, {
-    publicDir: config.publicDir,
-    media: media.grouped(),
-    site: {
-      siteUrl: config.siteUrl,
-      adminPath: config.adminPath,
-      isProduction: config.isProduction,
-      lastModified: [dataChanged, media.lastChanged()].filter(Boolean).reduce((a, b) => (a > b ? a : b)),
-    },
-  }), { generation: rendered.generation + 1 });
-  media = createMediaService({ db, storage, catalogue: data.catalogue, logger, onChange: render });
+  // The catalogue is products.json plus the admin-added products that can be shown (which
+  // depends on their photos), rebuilt in place so every holder of data.catalogue sees it.
+  const render = () => {
+    Object.assign(data.catalogue, buildCatalogue(data.site, data.base, products.visible()));
+    Object.assign(rendered, renderSite(data, {
+      publicDir: config.publicDir,
+      media: media.grouped(),
+      site: {
+        siteUrl: config.siteUrl,
+        adminPath: config.adminPath,
+        isProduction: config.isProduction,
+        lastModified: [dataChanged, media.lastChanged(), products.lastChanged()].filter(Boolean).reduce((a, b) => (a > b ? a : b)),
+      },
+    }), { generation: rendered.generation + 1 });
+  };
+  media = createMediaService({
+    db, storage, catalogue: data.catalogue, logger, onChange: render,
+    productExists: (id) => data.catalogue.productById.has(id) || products.exists(id),
+  });
+  products = createProductService({ db, base: data.base, media, logger, onChange: render });
   render();
 
   const auth = createAuth({ db, config });
@@ -64,7 +75,7 @@ export function createApp({ config, logger, db, data }) {
     }
   });
 
-  app.use('/api/admin', createAdminRouter({ config, logger, auth, csrf, media }));
+  app.use('/api/admin', createAdminRouter({ config, logger, auth, csrf, media, products }));
 
   // Admin screen: static files from admin/. It holds no secrets — everything it
   // shows comes from the authenticated API. Never indexed, never cached.
@@ -81,7 +92,7 @@ export function createApp({ config, logger, db, data }) {
   app.use(notFound);
   app.use(errorHandler({ logger, pages: rendered }));
 
-  return { app, auth, storage, media };
+  return { app, auth, storage, media, products };
 }
 
 // early: { server, mount } — a server that is already listening (see server/main.js);

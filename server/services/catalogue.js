@@ -56,8 +56,31 @@ export function loadData({ dataDir, publicDir }) {
   const waLink = (message) => `https://wa.me/${site.whatsapp.number}?text=${encodeURIComponent(message)}`;
   const msg = site.whatsappMessages;
 
+  const phoneHref = `tel:${site.phone.international}`;
+  const builtSite = {
+    ...site,
+    phoneHref,
+    wa: {
+      general: waLink(msg.general),
+      missingProduct: waLink(msg.missingProduct),
+      wholesale: waLink(msg.wholesale),
+    },
+  };
+  return {
+    site: builtSite,
+    catalogue: buildCatalogue(builtSite, data),
+    base: data, // the validated products.json, for rebuilding with admin-added products
+  };
+}
+
+// The catalogue from products.json plus `added` (products from the admin panel, already
+// checked: unique ids, existing categories). Added products come after the built-in ones.
+export function buildCatalogue(site, data, added = []) {
+  const waLink = (message) => `https://wa.me/${site.whatsapp.number}?text=${encodeURIComponent(message)}`;
+  const msg = site.whatsappMessages;
+
   const categoryById = new Map(data.categories.map((c) => [c.id, c]));
-  const products = data.products.map((p) => {
+  const products = [...data.products, ...added].map((p) => {
     const category = categoryById.get(p.category);
     const variant = p.flavour ? `${p.size} · ${p.flavour}` : p.size;
     const label = `${p.brand} ${p.name} (${variant})`;
@@ -85,24 +108,12 @@ export function loadData({ dataDir, publicDir }) {
     };
   });
 
-  const phoneHref = `tel:${site.phone.international}`;
   return {
-    site: {
-      ...site,
-      phoneHref,
-      wa: {
-        general: waLink(msg.general),
-        missingProduct: waLink(msg.missingProduct),
-        wholesale: waLink(msg.wholesale),
-      },
-    },
-    catalogue: {
-      categories,
-      products,
-      featured: products.filter((p) => p.featured),
-      brands: [...new Set(products.map((p) => p.brand))],
-      productById: new Map(products.map((p) => [p.id, p])),
-      categoryById: new Map(categories.map((c) => [c.id, c])),
-    },
+    categories,
+    products,
+    featured: products.filter((p) => p.featured),
+    brands: [...new Set(products.map((p) => p.brand))],
+    productById: new Map(products.map((p) => [p.id, p])),
+    categoryById: new Map(categories.map((c) => [c.id, c])),
   };
 }

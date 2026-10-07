@@ -31,9 +31,16 @@ export function homePage(ctx) {
   const uploaded = ctx.media;
   const hero = uploaded.hero[0] ? { ...uploaded.hero[0], alt: uploaded.hero[0].alt || DEFAULT_MEDIA.hero.alt } : staticImage(ctx, DEFAULT_MEDIA.hero.src, DEFAULT_MEDIA.hero.alt);
   const snacksBanner = uploaded.banner[0] || staticImage(ctx, DEFAULT_MEDIA.snacksBanner.src, DEFAULT_MEDIA.snacksBanner.alt);
-  const gallery = uploaded.gallery.length
-    ? [{ ...DEFAULT_MEDIA.gallery[0], image: staticImage(ctx, DEFAULT_MEDIA.gallery[0].src) }, ...uploaded.gallery.map((m) => ({ kind: 'image', image: m, label: m.alt || 'Inside the store' }))]
-    : DEFAULT_MEDIA.gallery.map((g) => ({ ...g, image: staticImage(ctx, g.src) }));
+  // Gallery uploads add to the built-in photos: tour video, then uploads, then built-ins.
+  const [tour, ...builtInPhotos] = DEFAULT_MEDIA.gallery.map((g) => ({ ...g, image: staticImage(ctx, g.src) }));
+  const gallery = [tour, ...uploaded.gallery.map((m) => ({ kind: 'image', image: m, label: m.alt || 'Inside the store' })), ...builtInPhotos];
+  // The desktop bento layout repeats every 8 tiles. A last, incomplete group would leave
+  // holes, so its tiles are laid out as even rows instead: 1–4 tiles in one row, 5–7 in
+  // two. Width in grid columns (of 12) per tile index, read by galleryItem.
+  const tail = gallery.length % 8;
+  const tailRows = !tail ? [] : tail <= 4 ? [tail] : [Math.ceil(tail / 2), Math.floor(tail / 2)];
+  const tailWidths = tailRows.flatMap((n) => Array(n).fill(12 / n));
+  const tileWidth = (i) => tailWidths[i - (gallery.length - tail)];
   // On mobile the first two photos are shown as an overlapping pair above the rail.
   const pairIndexes = gallery.map((g, i) => (g.kind === 'image' ? i : -1)).filter((i) => i >= 0).slice(0, 2);
   const pair = pairIndexes.map((i) => gallery[i]).reverse();
@@ -52,7 +59,7 @@ export function homePage(ctx) {
 
   const allCategory = { all: true, id: 'all', name: 'All products', number: '00', url: '/products', products: categories.find((c) => c.products.length)?.products ?? [] };
 
-  const galleryItem = (g, i) => html`<figure class="gitem${pairIndexes.includes(i) ? ' gitem--paired' : ''}" data-kind="${g.kind}" data-label="${g.label}" data-full="${g.image.full}"${g.video ? html` data-video="${g.video}"` : ''}>
+  const galleryItem = (g, i) => html`<figure class="gitem${pairIndexes.includes(i) ? ' gitem--paired' : ''}${tileWidth(i) ? ` gitem--w${tileWidth(i)}` : ''}" data-kind="${g.kind}" data-label="${g.label}" data-full="${g.image.full}"${g.video ? html` data-video="${g.video}"` : ''}>
 ${img(ctx, g.image, g.kind === 'video' ? '' : `${g.label} at ${site.name}, ${site.address.area}`, { cls: 'gitem__img', sizes: SIZES.gallery })}
 ${g.kind === 'video' ? html`<video class="gitem__video" muted loop playsinline preload="none" data-src="${g.video}" aria-label="Video tour of ${site.name}"></video>` : ''}
 <figcaption>${g.label}</figcaption>
