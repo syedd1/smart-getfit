@@ -4,7 +4,7 @@ Catalogue website for **The Smart GetFit Nutrition**, a sports-nutrition and sup
 
 It is deliberately simple: one Node.js process, plain HTML/CSS/JavaScript, a SQLite file, and no build step.
 
-**What it is not:** there is no cart, checkout, payments, customer accounts or stock system. Products and prices live in a JSON file; the admin panel only manages photos.
+**What it is not:** there is no cart, checkout, payments, customer accounts or stock system. The built-in products and prices live in a JSON file; the admin panel manages photos and can add further products.
 
 ---
 
@@ -183,7 +183,7 @@ A few rules the server checks for you:
 
 ## 6. The admin panel
 
-Open `https://your-site/admin/` (or whatever `ADMIN_PATH` is). It manages **photos only**.
+Open `https://your-site/admin/` (or whatever `ADMIN_PATH` is). It has two tabs: **Photos** and **Products**.
 
 ### Setting up or changing the password
 
@@ -202,11 +202,21 @@ On a server where you set environment variables some other way, use `npm run has
   - **A product** — the first photo replaces that product's built-in photo everywhere.
   - **Homepage hero** — the big photo at the top of the homepage (first one is used).
   - **Healthy Snacks banner** — the banner above the snacks on phones (first one is used).
-  - **Gallery** — the "Inside the Store" gallery, in the order shown.
+  - **Gallery** — the "Inside the Store" gallery, in the order shown. Uploads are added after the store video and before the built-in photos (they don't replace them).
 - **Description (alt text)** for each photo — read by screen readers and Google.
 - **Reorder** (↑ Earlier / ↓ Later), **replace**, **move** to another place, **delete**.
 
 Every photo is checked and converted automatically: only real JPEG/PNG/WebP files are accepted, it is rotated correctly, resized to 400/800/1600 px WebP copies, and stripped of location and camera data. Changes appear on the site immediately.
+
+### Adding products
+
+**Products → Add product**: brand, name, category (one of the existing ones, including Healthy Snacks), size, optional flavour, description, in stock and featured. There is no price field: products added here show "Ask for Price". The web address (`/products/…`) is filled in from the name; it can't be changed after saving, because photos are linked to it.
+
+- **Choose the photo in the same form** and the product goes on the site as soon as you save. Without a photo it is saved but marked "Needs a photo" (use its **Add photo** button later). Choosing a photo when editing makes it the one shown on the site; the old one stays under Photos, where you can delete it.
+- Added products get the same pages, category filters, WhatsApp buttons and sitemap entries as built-in ones, and are listed after them.
+- **Edit** and **Delete** work for added products only. Deleting a product also deletes its photos.
+- Added products are stored in the database (so a `git pull` deploy doesn't remove them, and `npm run backup` includes them). The products in `data/products.json` are shown as "Built-in" and are still changed by editing that file ([§5](#5-editing-shop-details)). New categories are also added there.
+- If `products.json` later gets a product with the same web address, or loses an added product's category, the added product is hidden and the admin says why — the site keeps working.
 
 ### Sessions and lockout
 
@@ -255,7 +265,7 @@ All commands load `.env` automatically when it exists.
 
 ## 9. Database and migrations
 
-SQLite stores only what has to change at runtime: **photo records** and **admin sessions** (plus one setting). Products and prices are *not* in the database.
+SQLite stores only what has to change at runtime: **photo records**, **products added in the admin panel** and **admin sessions** (plus one setting). The built-in products in `data/products.json` are *not* in the database.
 
 The schema is a list of numbered SQL files in `server/db/migrations/` (`001_initial.sql`, `002_settings.sql`, …). At startup the server applies any it hasn't applied yet, in order, each in a transaction — if one fails it is rolled back and the server refuses to start with the error. `npm run migrate` does the same without starting the server.
 

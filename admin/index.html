@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Media admin | The Smart GetFit Nutrition</title>
+<title>Admin | The Smart GetFit Nutrition</title>
 <link rel="icon" href="/assets/logo-sm.webp" type="image/webp">
 <link rel="stylesheet" href="/css/tokens.css">
 <link rel="stylesheet" href="admin.css">
@@ -13,7 +13,7 @@
 <body>
 <header class="bar">
   <img class="bar__logo" src="/assets/logo-sm.webp" width="480" height="480" alt="">
-  <span class="bar__title">Media admin</span>
+  <span class="bar__title">Admin</span>
   <a class="bar__link" href="/" target="_blank" rel="noopener">View site ↗</a>
   <button class="btn btn--ghost" type="button" data-logout hidden>Log out</button>
 </header>
@@ -33,8 +33,14 @@
     </form>
   </section>
 
-  <!-- Media manager -->
+  <!-- Media and product manager -->
   <section data-view="app" hidden>
+    <nav class="tabs" aria-label="Admin sections">
+      <button class="tabs__tab" type="button" data-tab="photos" aria-pressed="true">Photos</button>
+      <button class="tabs__tab" type="button" data-tab="products" aria-pressed="false">Products</button>
+    </nav>
+
+    <div class="tabpanel" data-tab-panel="photos">
     <section class="panel" aria-labelledby="upload-title">
       <h1 id="upload-title">Upload photos</h1>
       <form class="form upload" data-upload-form novalidate>
@@ -87,6 +93,58 @@
       <p class="hint">The first photo in each group is the one shown on the site (for the gallery, all are shown in this order). Anything without an uploaded photo keeps its built-in photo.</p>
       <div data-library></div>
     </section>
+    </div>
+
+    <div class="tabpanel" data-tab-panel="products" hidden>
+      <section class="panel" aria-labelledby="products-title">
+        <div class="panel__head">
+          <h1 id="products-title">Products</h1>
+          <button class="btn btn--primary" type="button" data-product-add>Add product</button>
+        </div>
+        <p class="hint">Products you add here go on the site as soon as they have a photo. Built-in products come from data/products.json and are changed there.</p>
+
+        <form class="form product-form" data-product-form novalidate hidden>
+          <h2 data-product-form-title>Add product</h2>
+          <div class="form__row">
+            <label class="field"><span>Brand</span><input name="brand" maxlength="60" required placeholder="e.g. Optimum Nutrition"></label>
+            <label class="field"><span>Product name</span><input name="name" maxlength="80" required placeholder="e.g. Gold Standard 100% Whey"></label>
+          </div>
+          <div class="form__row">
+            <label class="field"><span>Category</span><select name="category" data-product-category required></select></label>
+            <label class="field"><span>Size</span><input name="size" maxlength="40" required placeholder="e.g. 5 lb, 30 servings, 45 g"></label>
+          </div>
+          <label class="field"><span>Flavour — optional</span><input name="flavour" maxlength="40" placeholder="e.g. Chocolate"></label>
+          <label class="field"><span>Description — shown on the product page (up to 300 characters)</span><textarea name="description" maxlength="300" rows="3" required></textarea></label>
+          <div class="field">
+            <span data-product-photo-label>Photo — the product goes on the site once it has one</span>
+            <label class="drop drop--small">
+              <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" data-product-photo>
+              <strong>Tap to choose a photo</strong>
+              <span>JPEG, PNG or WebP</span>
+            </label>
+            <div class="photo-pick" data-product-photo-pick hidden>
+              <img alt="" data-product-photo-preview>
+              <span data-product-photo-name></span>
+              <button class="btn btn--ghost btn--small" type="button" data-product-photo-clear>Remove</button>
+            </div>
+          </div>
+          <label class="field"><span>Web address — filled in for you; it can't be changed after saving</span>
+            <span class="slug"><span class="slug__prefix">/products/</span><input name="id" maxlength="80" required autocapitalize="none" autocomplete="off" spellcheck="false"></span>
+          </label>
+          <div class="checks">
+            <label class="check"><input type="checkbox" name="available" checked> In stock</label>
+            <label class="check"><input type="checkbox" name="featured"> Featured (also shown in Featured Products)</label>
+          </div>
+          <p class="notice notice--error" data-product-error role="alert" hidden></p>
+          <div class="upload__actions">
+            <button class="btn btn--primary" type="submit" data-product-save>Save product</button>
+            <button class="btn btn--ghost" type="button" data-product-cancel>Cancel</button>
+          </div>
+        </form>
+
+        <div data-product-list></div>
+      </section>
+    </div>
   </section>
 </main>
 
@@ -95,10 +153,20 @@
 <dialog class="confirm" data-confirm aria-labelledby="confirm-title">
   <h2 id="confirm-title">Delete this photo?</h2>
   <p>It will be removed from the website straight away. This can't be undone.</p>
+  <p class="confirm__warn" data-confirm-warn hidden></p>
   <img class="confirm__img" alt="" data-confirm-img>
   <div class="confirm__actions">
     <button class="btn btn--ghost" type="button" data-confirm-cancel>Cancel</button>
     <button class="btn btn--danger" type="button" data-confirm-ok>Delete</button>
+  </div>
+</dialog>
+
+<dialog class="confirm" data-product-confirm aria-labelledby="product-confirm-title">
+  <h2 id="product-confirm-title">Delete this product?</h2>
+  <p><strong data-product-confirm-name></strong> and its photos will be removed from the website straight away. This can't be undone.</p>
+  <div class="confirm__actions">
+    <button class="btn btn--ghost" type="button" data-product-confirm-cancel>Cancel</button>
+    <button class="btn btn--danger" type="button" data-product-confirm-ok>Delete product</button>
   </div>
 </dialog>
 </body>

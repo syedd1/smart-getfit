@@ -89,7 +89,9 @@ export function toPublicMedia(row) {
 
 const toAdminMedia = (row) => ({ ...toPublicMedia(row), sortOrder: row.sort_order, createdAt: row.created_at, updatedAt: row.updated_at });
 
-export function createMediaService({ db, storage, catalogue, logger, onChange: notify = () => {} }) {
+// productExists: whether photos may be attached to a product id. Besides the products on
+// the site it includes admin-added products that are not shown yet (they need a photo first).
+export function createMediaService({ db, storage, catalogue, logger, onChange: notify = () => {}, productExists = (id) => catalogue.productById.has(id) }) {
   // The change is already saved when this runs: if refreshing the pages fails, log it
   // and keep serving the previous pages rather than reporting the upload as failed.
   const onChange = () => {
@@ -120,7 +122,7 @@ export function createMediaService({ db, storage, catalogue, logger, onChange: n
   function placement({ section, productId }) {
     if (section === 'product') {
       if (!productId) throw new HttpError(400, 'invalid_input', 'Choose the product this image belongs to.');
-      if (!catalogue.productById.has(productId)) throw new HttpError(400, 'invalid_input', `There is no product with id "${productId}" in products.json.`);
+      if (!productExists(productId)) throw new HttpError(400, 'invalid_input', `There is no product with id "${productId}".`);
       return { section, productId };
     }
     return { section, productId: null };
@@ -178,7 +180,7 @@ export function createMediaService({ db, storage, catalogue, logger, onChange: n
     listAdmin() {
       return q.list.all({ section: null, productId: null }).map((row) => ({
         ...toAdminMedia(row),
-        productMissing: row.product_id !== null && !catalogue.productById.has(row.product_id),
+        productMissing: row.product_id !== null && !productExists(row.product_id),
       }));
     },
 
@@ -266,6 +268,19 @@ export function createMediaService({ db, storage, catalogue, logger, onChange: n
       await removeFiles(filesOf(row));
       logger.info('media deleted', { id, section: row.section, productId: row.product_id });
       onChange();
+    },
+
+    // Deletes every photo of a product, together with whatever `alsoDelete` removes in the
+    // same transaction (the product itself). The caller re-renders the pages.
+    async removeProductPhotos(productId, alsoDelete = () => {}) {
+      const rows = db.transaction(() => {
+        const current = q.list.all({ section: 'product', productId });
+        for (const row of current) q.remove.run(row.id);
+        alsoDelete();
+        return current;
+      })();
+      for (const row of rows) await removeFiles(filesOf(row)); // after commit, as in remove()
+      if (rows.length) logger.info('media deleted with product', { productId, count: rows.length });
     },
 
     // ids must be exactly the images currently in that section (and product).

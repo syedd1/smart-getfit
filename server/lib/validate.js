@@ -138,6 +138,37 @@ export const reorderSchema = z.strictObject({
 
 export const mediaId = z.string().regex(/^[1-9]\d{0,9}$/).transform(Number);
 
+// Products added in the admin panel: the same limits as products.json, with unsafe
+// characters removed like alt text. Line breaks and tabs become spaces first, so words
+// typed on separate lines don't run together.
+const tidy = (s) => s.replace(/\s*[\r\n\t]+\s*/g, ' ').replace(UNSAFE_TEXT, '').trim();
+const cleanText = (label, max) => z.string().transform(tidy)
+  .pipe(z.string().min(1, `${label} is required`).max(max, `${label} can be at most ${max} characters`));
+const optionalText = (label, max) => z.preprocess((v) => (typeof v === 'string' && tidy(v) === '' ? null : v),
+  cleanText(label, max).nullable().default(null));
+
+const productFields = {
+  brand: cleanText('Brand', 60),
+  name: cleanText('Name', 80),
+  category: slug,
+  size: cleanText('Size', 40),
+  flavour: optionalText('Flavour', 40),
+  description: cleanText('Description', 300),
+  price: z.number({ error: 'Price must be a whole number of rupees' }).int('Price must be a whole number of rupees')
+    .positive('Price must be more than 0').max(10_000_000, 'Price can be at most 10,000,000').nullable().default(null),
+  available: z.boolean().default(true),
+  featured: z.boolean().default(false),
+};
+
+export const productCreateSchema = z.strictObject({
+  id: z.string().max(80, 'The web address can be at most 80 characters')
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'The web address must be lowercase letters and numbers joined by single hyphens'),
+  ...productFields,
+});
+
+// The id never changes: it is the page address and links the product's photos.
+export const productUpdateSchema = z.strictObject(productFields);
+
 // "products[3].category: unknown category "wey"" — one line per issue, for startup logs.
 export function formatIssues(error) {
   return error.issues.map((i) => {
